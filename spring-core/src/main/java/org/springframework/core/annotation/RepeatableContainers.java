@@ -40,6 +40,8 @@ import org.springframework.util.ReflectionUtils;
  *
  * @author Phillip Webb
  * @since 5.2
+ *
+ *  Tests {@link RepeatableContainersTests}.
  */
 public abstract class RepeatableContainers {
 
@@ -163,6 +165,16 @@ public abstract class RepeatableContainers {
 		private static Object computeRepeatedAnnotationsMethod(Class<? extends Annotation> annotationType) {
 			AttributeMethods methods = AttributeMethods.forAnnotationType(annotationType);
 			if (methods.hasOnlyValueAttribute()) {
+				/**
+				 * Java 8 引入 @Repeatable 后，需要 “容器注解” 来收集重复注解：
+				 * 	@Repeatable(MyValues.class)        // 重复注解
+				 *  @interface MyValue { String v(); }
+				 *
+				 *  @interface MyValues { MyValue[] value(); }   // 容器注解
+				 *
+				 *  Spring 在解析阶段需要 把容器注解反推回可重复注解，因此必须 精确找到容器注解里那个 value() 方法，而这段代码就是干这件事。
+				 *  Spring 用这段逻辑精准锁定“容器注解的 value 方法”，从而把 @MyValues({@MyValue("a"),@MyValue("b")}) 拆成两个独立的 @MyValue。
+				 */
 				Method method = methods.get(0);
 				Class<?> returnType = method.getReturnType();
 				if (returnType.isArray()) {
@@ -179,7 +191,7 @@ public abstract class RepeatableContainers {
 
 
 	/**
-	 * A single explicit mapping.
+	 * A single explicit mapping.  这个是自定义的
 	 */
 	private static class ExplicitRepeatableContainer extends RepeatableContainers {
 

@@ -85,6 +85,16 @@ public class AnnotatedBeanDefinitionReader {
 		Assert.notNull(environment, "Environment must not be null");
 		this.registry = registry;
 		this.conditionEvaluator = new ConditionEvaluator(registry, environment, null);
+
+		/**
+		 * 注册6个BeanDefinition:
+		 *   {@link org.springframework.context.annotation.ConfigurationClassPostProcessor }
+		 *	 {@link AutowiredAnnotationBeanPostProcessor }
+		 * 	 {@link CommonAnnotationBeanPostProcessor }
+		 * 	 {@link org.springframework.orm.jpa.support.PersistenceAnnotationBeanPostProcessor } 支持JPA，可选
+		 * 	 {@link EventListenerMethodProcessor}
+		 * 	 {@link DefaultEventListenerFactory}
+		 */
 		AnnotationConfigUtils.registerAnnotationConfigProcessors(this.registry);
 	}
 

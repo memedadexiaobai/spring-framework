@@ -19,7 +19,7 @@ package org.springframework.core.annotation;
 /**
  * Marker interface implemented by synthesized annotation proxies.
  *
- * <p>Used to detect whether an annotation has already been synthesized.
+ * <p>Used to detect whether an annotation has already been synthesized(合成的).
  *
  * @author Sam Brannen
  * @since 4.2

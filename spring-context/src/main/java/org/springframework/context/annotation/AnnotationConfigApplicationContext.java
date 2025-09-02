@@ -63,6 +63,12 @@ public class AnnotationConfigApplicationContext extends GenericApplicationContex
 	 * through {@link #register} calls and then manually {@linkplain #refresh refreshed}.
 	 */
 	public AnnotationConfigApplicationContext() {
+		// 创建  DefaultListableBeanFactory 作为 beanFactory
+		// DefaultListableBeanFactory 默认注册以下3个到 ignoredDependencyInterfaces：
+		// 	 ignoreDependencyInterface(BeanNameAware.class);
+		//	 ignoreDependencyInterface(BeanFactoryAware.class);
+		//	 ignoreDependencyInterface(BeanClassLoaderAware.class);
+		super();
 		this.reader = new AnnotatedBeanDefinitionReader(this);
 		this.scanner = new ClassPathBeanDefinitionScanner(this);
 	}

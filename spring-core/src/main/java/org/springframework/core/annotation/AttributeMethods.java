@@ -71,6 +71,7 @@ final class AttributeMethods {
 		for (int i = 0; i < attributeMethods.length; i++) {
 			Method method = this.attributeMethods[i];
 			Class<?> type = method.getReturnType();
+			// getDefaultValue() 就是 “注解接口里 default 写的东西”，与具体实例无关。
 			if (method.getDefaultValue() != null) {
 				foundDefaultValueMethod = true;
 			}
@@ -269,6 +270,25 @@ final class AttributeMethods {
 		return new AttributeMethods(annotationType, attributeMethods);
 	}
 
+	/**
+	 * Spring 用来识别 “配置类（@Configuration）里真正起作用的 bean 定义方法” 的最简单、最普适的语法级过滤器：
+	 * “无参数 + 有返回值”  →  才有资格成为一个 @Bean 属性方法。
+	 *
+	 *  | 条件                         | 原因                                                                                                              |
+	 * | -------------------------- | --------------------------------------------------------------------------------------------------------------- |
+	 * | `getParameterCount() == 0` | `@Bean` 方法通常**不接受外部参数**（所有依赖都通过方法体内部 `@Autowired` / `@Value` / 其他 `@Bean` 方法解决）。带参数的方法往往是**生命周期回调**或**普通工具方法**。 |
+	 * | `returnType != void.class` | `@Bean` 必须**返回一个对象**以便注册到容器；`void` 方法显然无法提供 bean 实例。
+	 *
+	 * isAttributeMethod() 只是第一道“语法闸门”，
+	 * 真正决定它是不是 @Bean 还要看后续：
+	 * 	是否打了 @Bean 注解
+	 * 	是否被 @Conditional 等条件放行
+	 * 	是否被 proxyBeanMethods=true 代理
+	 * 	但先用“无参 + 有返回值”筛掉 90% 不相关方法，可以显著减少后续反射/注解开销。
+	 *
+	 * @param method
+	 * @return
+	 */
 	private static boolean isAttributeMethod(Method method) {
 		return (method.getParameterCount() == 0 && method.getReturnType() != void.class);
 	}

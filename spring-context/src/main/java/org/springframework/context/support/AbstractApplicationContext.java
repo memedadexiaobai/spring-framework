@@ -515,6 +515,17 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 
 	@Override
 	public void refresh() throws BeansException, IllegalStateException {
+		/**
+		 * 类锁(Class Lock):
+		 * 	锁的是 *.class 对象，整个JVM 里只有一把，用来同步静态成员
+		 * 	存储在 方法区 / 元空间的 Klass 结构 里，本质上是 Class<?> 对象本身当成锁。
+		 *  synchronized static method()	Foo.class	所有调用该方法的线程互斥
+		 *
+		 *  象锁(Instance Lock):
+		 *    锁的是 this or 某个实例，每 new 一次就一把新锁，用来同步实例成员
+		 *    对象锁存储在 Java 对象头 Mark Word 里（64 bit 里占 2 bit + 指针）
+		 *    synchronized(obj) {} 或 synchronized instanceMethod()	obj or this	只有拿到同一把实例锁的线程互斥
+ 		 */
 		synchronized (this.startupShutdownMonitor) {
 			// Prepare this context for refreshing.
 			prepareRefresh();
@@ -523,10 +534,18 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 			ConfigurableListableBeanFactory beanFactory = obtainFreshBeanFactory();
 
 			// Prepare the bean factory for use in this context.
+			// 1.设置 StandardBeanExpressionResolver 支持 SPEL 表达式
+			// 2.设置 ResourceEditorRegistrar 支持属性编辑转换
+			// 3.添加三个BeanPostProcessor：ApplicationContextAwareProcessor、ApplicationListenerDetector、LoadTimeWeaverAwareProcessor
+			// 4.注册6个ignoredDependencyInterfaces：
+			// 		EnvironmentAware、EmbeddedValueResolverAware、ResourceLoaderAware、ApplicationEventPublisherAware、MessageSourceAware、ApplicationContextAware
+			// 5.注册5个resolvableDependencies：
+			// 	 BeanFactory.class-->beanFactory、ResourceLoader.class-->this、ApplicationEventPublisher.class-->this、ApplicationContext.class-->this
+			// 6.注册3个singletonObjects：environment、systemProperties、systemEnvironment
 			prepareBeanFactory(beanFactory);
 
 			try {
-				// Allows post-processing of the bean factory in context subclasses.
+				// Allows post-processing of the bean factory in context subclasses. 可以做beanFactoru做一些后置的处理
 				postProcessBeanFactory(beanFactory);
 
 				// Invoke factory processors registered as beans in the context.
@@ -647,7 +666,11 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 	protected void prepareBeanFactory(ConfigurableListableBeanFactory beanFactory) {
 		// Tell the internal bean factory to use the context's class loader etc.
 		beanFactory.setBeanClassLoader(getClassLoader());
+		// 支持 SPEL 表达式
 		beanFactory.setBeanExpressionResolver(new StandardBeanExpressionResolver(beanFactory.getBeanClassLoader()));
+		// ResourceEditorRegistrar 是 Spring 在 prepareBeanFactory 阶段主动注册的一个 “批量属性编辑器登记员”，
+		// 用来把 字符串形式的配置值 转换成 Resource、File、URL、URI、Class 等常见资源类型，
+		// 从而让 XML、注解或 Environment 里的纯文本配置可以 直接注入到 Bean 的对应属性 中
 		beanFactory.addPropertyEditorRegistrar(new ResourceEditorRegistrar(this, getEnvironment()));
 
 		// Configure the bean factory with context callbacks.
@@ -669,10 +692,14 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 		// Register early post-processor for detecting inner beans as ApplicationListeners.
 		beanFactory.addBeanPostProcessor(new ApplicationListenerDetector(this));
 
-		// Detect a LoadTimeWeaver and prepare for weaving, if found.
+		// Detect a LoadTimeWeaver and prepare for weaving(编织), if found.
 		if (beanFactory.containsBean(LOAD_TIME_WEAVER_BEAN_NAME)) {
+			// LoadTimeWeaverAwareProcessor 是一个 BeanPostProcessor，只在容器探测到名为 loadTimeWeaver 的 Bean 时才会被注册；
+			// 它的唯一职责就是 把真正的 LoadTimeWeaver 实现注入给所有实现了 LoadTimeWeaverAware 接口的 Bean，从而为 AspectJ 类加载时织入（Load-Time Weaving, LTW） 做好准备。
+			// Spring 内置唯一实现是 AspectJWeavingEnabler；它拿到 LoadTimeWeaver 后，会把 AspectJ 的 ClassTransformer 注册到 JVM 的 Instrumentation 上，从而在 类加载瞬间 将切面织入目标字节码。
 			beanFactory.addBeanPostProcessor(new LoadTimeWeaverAwareProcessor(beanFactory));
 			// Set a temporary ClassLoader for type matching.
+			// 这个临时加载器 跳过 LTW Transformer，避免在 纯类型匹配阶段（如判断 FactoryBean、BeanPostProcessor 等）就触发昂贵的字节码转换，提高启动速度，等真正需要实例化时再使用原始加载器
 			beanFactory.setTempClassLoader(new ContextTypeMatchClassLoader(beanFactory.getBeanClassLoader()));
 		}
 
@@ -708,6 +735,7 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 
 		// Detect a LoadTimeWeaver and prepare for weaving, if found in the meantime
 		// (e.g. through an @Bean method registered by ConfigurationClassPostProcessor)
+		// 关于LoadTimeWeaver看这篇文章了解即可，https://www.cnblogs.com/wade-luffy/p/6073702.html
 		if (beanFactory.getTempClassLoader() == null && beanFactory.containsBean(LOAD_TIME_WEAVER_BEAN_NAME)) {
 			beanFactory.addBeanPostProcessor(new LoadTimeWeaverAwareProcessor(beanFactory));
 			beanFactory.setTempClassLoader(new ContextTypeMatchClassLoader(beanFactory.getBeanClassLoader()));

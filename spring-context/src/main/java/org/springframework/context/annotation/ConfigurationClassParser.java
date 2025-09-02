@@ -171,12 +171,15 @@ class ConfigurationClassParser {
 		for (BeanDefinitionHolder holder : configCandidates) {
 			BeanDefinition bd = holder.getBeanDefinition();
 			try {
+				// 配置类是通过注解扫描（@Configuration、@Component）进来的 直接拿 AnnotatedTypeMetadata（ASM 已读过的注解缓存）→ 最快，无需再加载类
 				if (bd instanceof AnnotatedBeanDefinition) {
 					parse(((AnnotatedBeanDefinition) bd).getMetadata(), holder.getBeanName());
 				}
+				// 配置类是手动 register(SampleConfig.class) 或工厂方法 进来的，BeanDefinition 里已经存了 Class 对象	直接 getBeanClass() → 无需 Class.forName
 				else if (bd instanceof AbstractBeanDefinition && ((AbstractBeanDefinition) bd).hasBeanClass()) {
 					parse(((AbstractBeanDefinition) bd).getBeanClass(), holder.getBeanName());
 				}
+				//只有一串 类名字符串（XML <bean class="...">、早期 BeanDefinition、或延迟加载尚未解析 退而求其次，用 getBeanClassName() 字符串形式传给 parse，内部再 Class.forName
 				else {
 					parse(bd.getBeanClassName(), holder.getBeanName());
 				}
@@ -223,17 +226,21 @@ class ConfigurationClassParser {
 
 
 	protected void processConfigurationClass(ConfigurationClass configClass, Predicate<String> filter) throws IOException {
+		// 有2个阶段：PARSE_CONFIGURATION：解析配置 REGISTER_BEAN：注册bean
 		if (this.conditionEvaluator.shouldSkip(configClass.getMetadata(), ConfigurationPhase.PARSE_CONFIGURATION)) {
 			return;
 		}
 
+		// 同名配置类出现两次时，显式定义的 BeanDefinition（@Configuration 类或 XML） 优先 于通过 @Import 导入的同名类；并且把旧记录清掉，用新的。
+		// 显式 > @Import；两次 @Import 就合并；同名显式覆盖时，把旧缓存清掉重新来。
 		ConfigurationClass existingClass = this.configurationClasses.get(configClass);
 		if (existingClass != null) {
 			if (configClass.isImported()) {
-				if (existingClass.isImported()) {
+				if (existingClass.isImported()) { // 两个 @Import({FooConfig.class}) 分别从不同配置类引入	合并 import 来源，只保留一份解析结果，避免重复
 					existingClass.mergeImportedBy(configClass);
 				}
 				// Otherwise ignore new imported config class; existing non-imported class overrides it.
+				// 之前是显式的 FooConfig BeanDefinition（如 @Configuration 或 XML）来了个 @Import(FooConfig.class)的 忽略新 import 的，已有非导入的显式定义获胜，直接 return
 				return;
 			}
 			else {
@@ -268,7 +275,7 @@ class ConfigurationClassParser {
 			throws IOException {
 
 		if (configClass.getMetadata().isAnnotated(Component.class.getName())) {
-			// Recursively process any member (nested) classes first
+			// Recursively(递归) process any member (nested) classes first
 			processMemberClasses(configClass, sourceClass, filter);
 		}
 
@@ -349,7 +356,7 @@ class ConfigurationClassParser {
 	/**
 	 * Register member (nested) classes that happen to be configuration classes themselves.
 	 */
-	private void processMemberClasses(ConfigurationClass configClass, SourceClass sourceClass,
+	private void  processMemberClasses(ConfigurationClass configClass, SourceClass sourceClass,
 			Predicate<String> filter) throws IOException {
 
 		Collection<SourceClass> memberClasses = sourceClass.getMemberClasses();
