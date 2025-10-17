@@ -106,6 +106,85 @@ public class FastByteArrayOutputStream extends OutputStream {
 		}
 	}
 
+	/**
+	 * 这段代码是 **Spring 的 `FastByteArrayOutputStream.write(byte[], int, int)` 核心实现**，
+	 * 目标：**把一段外部字节数组写入“分段链表”（chunk list）中**，
+	 * **全程无锁、无数组拷贝扩容，只在 chunk 边界处做一次 `System.arraycopy`，支持超大缓冲且内存平滑增长。**
+	 *
+	 * ---
+	 *
+	 * ### 1  参数校验 & 状态检查
+	 *
+	 * ```java
+	 * if (offset < 0 || offset + length > data.length || length < 0) {
+	 *     throw new IndexOutOfBoundsException();
+	 * } else if (this.closed) {
+	 *     throw new IOException("Stream closed");
+	 * }
+	 * ```
+	 *
+	 * - 经典 **IO 边界检查** + **流关闭保护**。
+	 *
+	 * ---
+	 *
+	 * ### 2  快速路径：当前 chunk 够用
+	 *
+	 * ```java
+	 * if (this.buffers.peekLast() == null || this.buffers.getLast().length == this.index) {
+	 *     addBuffer(length);          // ① 没有 chunk 或当前 chunk 已满，新建一个
+	 * }
+	 * if (this.index + length <= this.buffers.getLast().length) {
+	 *     System.arraycopy(data, offset, this.buffers.getLast(), this.index, length);
+	 *     this.index += length;       // ② 一次拷贝搞定，最常用分支
+	 * }
+	 * ```
+	 *
+	 * - **绝大部分写操作**落入此分支，**只有一次 `arraycopy`**。
+	 * - `index` 始终指向 **当前 chunk 的写指针**。
+	 *
+	 * ---
+	 *
+	 * ### 3  慢路径：跨 chunk 拆分写
+	 *
+	 * ```java
+	 * int pos = offset;
+	 * do {
+	 *     if (this.index == this.buffers.getLast().length) {
+	 *         addBuffer(length);      // 当前 chunk 写满，再申请一个
+	 *     }
+	 *     int copyLength = this.buffers.getLast().length - this.index;
+	 *     copyLength = Math.min(length, copyLength); // 最多把当前 chunk 写满
+	 *     System.arraycopy(data, pos, this.buffers.getLast(), this.index, copyLength);
+	 *     pos += copyLength;
+	 *     this.index += copyLength;
+	 *     length -= copyLength;
+	 * } while (length > 0);
+	 * ```
+	 *
+	 * - **循环拆分**：把 **超长写** 按 **chunk 剩余容量** 切成多次 `arraycopy`，
+	 *   **每次只写满当前 chunk**，再申请下一个，**避免一次性大块内存分配**。
+	 *
+	 * ---
+	 *
+	 * ### 4  内存与性能亮点
+	 *
+	 * | 亮点 | 说明 |
+	 * |---|---|
+	 * | **无扩容拷贝** | 不像 `ByteArrayOutputStream` 需要 `Arrays.copyOf`，**只追加新 chunk** |
+	 * | ** chunk 大小动态** | `addBuffer(length)` 会按 **本次写长度** 与 **默认块大小** 取最大，**减少小块** |
+	 * | **零锁** | 整个方法 **无 synchronized**，依赖 **外部同步**或 **线程局部实例** |
+	 * | **支持超大缓冲** | 链表长度无上限，**只在 toByteArray() 时合并一次** |
+	 *
+	 * ---
+	 *
+	 * ### 5  一句话总结
+	 *
+	 * > **“先把数据写满当前 chunk，不够就再申请一个新 chunk 继续写，循环直到写完；全程只有 System.arraycopy，没有数组扩容，也没有锁，从而实现高吞吐、低内存浪费的分段缓冲。”**
+	 * @param data     the data.
+	 * @param offset   the start offset in the data.
+	 * @param length   the number of bytes to write.
+	 * @throws IOException
+	 */
 	@Override
 	public void write(byte[] data, int offset, int length) throws IOException {
 		if (offset < 0 || offset + length > data.length || length < 0) {

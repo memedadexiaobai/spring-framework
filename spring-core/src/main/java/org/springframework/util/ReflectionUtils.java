@@ -464,6 +464,7 @@ public abstract class ReflectionUtils {
 				List<Method> defaultMethods = findConcreteMethodsOnInterfaces(clazz);
 				if (defaultMethods != null) {
 					result = new Method[declaredMethods.length + defaultMethods.size()];
+					// 自己声明的方法优先 然后在放默认方法
 					System.arraycopy(declaredMethods, 0, result, 0, declaredMethods.length);
 					int index = declaredMethods.length;
 					for (Method defaultMethod : defaultMethods) {

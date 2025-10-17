@@ -76,7 +76,7 @@ public class AntPathMatcher implements PathMatcher {
 	public static final String DEFAULT_PATH_SEPARATOR = "/";
 
 	private static final int CACHE_TURNOFF_THRESHOLD = 65536;
-
+	//匹配一段被花括号 {} 包围、且内部不包含斜杠 / 的文本。
 	private static final Pattern VARIABLE_PATTERN = Pattern.compile("\\{[^/]+?\\}");
 
 	private static final char[] WILDCARD_CHARS = { '*', '?', '{' };
@@ -137,7 +137,7 @@ public class AntPathMatcher implements PathMatcher {
 	}
 
 	/**
-	 * Specify whether to trim tokenized paths and patterns.
+	 * Specify whether to trim(修剪，修整) tokenized(标记化的) paths and patterns.
 	 * <p>Default is {@code false}.
 	 */
 	public void setTrimTokens(boolean trimTokens) {
@@ -917,6 +917,7 @@ public class AntPathMatcher implements PathMatcher {
 
 	/**
 	 * A simple cache for patterns that depend on the configured path separator.
+	 * WildCard:通配符
 	 */
 	private static class PathSeparatorPatternCache {
 

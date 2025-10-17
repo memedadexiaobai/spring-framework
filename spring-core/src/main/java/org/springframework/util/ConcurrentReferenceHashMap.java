@@ -166,6 +166,79 @@ public class ConcurrentReferenceHashMap<K, V> extends AbstractMap<K, V> implemen
 	 * @param concurrencyLevel the expected number of threads that will concurrently
 	 * write to the map
 	 * @param referenceType the reference type used for entries (soft or weak)
+	 *
+	 *                      这段代码是 `ConcurrentReferenceHashMap` 的“**分段锁 + 引用类型**”初始化核心逻辑，
+	 * 目标：**根据用户给的“初始容量、负载因子、并发级别、引用类型”**，
+	 * **计算出最合适的分段数量与每段容量**，并一次性创建好所有 `Segment` 对象，
+	 * **保证后续并发读写时无需再扩容分段，只需在单个 Segment 内做链表/树扩容**。
+	 *
+	 * ---
+	 *
+	 * ### 1  参数校验（Assert）
+	 *
+	 * | 参数 | 校验 |
+	 * |---|---|
+	 * | `initialCapacity` | ≥ 0 |
+	 * | `loadFactor` | > 0 |
+	 * | `concurrencyLevel` | > 0 |
+	 * | `referenceType` | 非 null |
+	 *
+	 * ---
+	 *
+	 * ### 2  计算分段数（并发级别）
+	 *
+	 * ```java
+	 * this.shift = calculateShift(concurrencyLevel, MAXIMUM_CONCURRENCY_LEVEL);
+	 * int size = 1 << this.shift;   // 必须是 2 的幂
+	 * ```
+	 *
+	 * - `calculateShift(x, max)` 返回 **≥ x 的最小 2 的幂的指数**（即 `log2(size)`）。
+	 * - 结果 `size` 就是 **Segment[] 长度**，也是 **真正的并发度**（锁粒度）。
+	 *
+	 * ---
+	 *
+	 * ### 3  计算每段容量
+	 *
+	 * ```java
+	 * int roundedUpSegmentCapacity = (int) ((initialCapacity + size - 1L) / size);
+	 * int initialSize = 1 << calculateShift(roundedUpSegmentCapacity, MAXIMUM_SEGMENT_SIZE);
+	 * ```
+	 *
+	 * - **先均分**：把总初始容量按分段数向上取整均摊。
+	 * - **再对齐 2 的幂**：每段内部哈希表长度也是 2 的幂，方便位运算定位。
+	 *
+	 * ---
+	 *
+	 * ### 4  创建 Segment 数组与阈值
+	 *
+	 * ```java
+	 * int resizeThreshold = (int) (initialSize * getLoadFactor());
+	 * Segment[] segments = (Segment[]) Array.newInstance(Segment.class, size);
+	 * for (int i = 0; i < segments.length; i++) {
+	 *     segments[i] = new Segment(initialSize, resizeThreshold);
+	 * }
+	 * this.segments = segments;
+	 * ```
+	 *
+	 * - **一次性创建所有 Segment**，后续 **不再扩容分段**（避免全局锁）。
+	 * - 每个 Segment 拥有自己的 **哈希表 + 锁 + 扩容阈值**，**独立扩容**。
+	 *
+	 * ---
+	 *
+	 * ### 5  一张图总结初始化结果
+	 *
+	 * | 变量 | 含义 | 值 |
+	 * |---|---|---|
+	 * | `segments.length` | 分段锁数量 | `1 << shift`（2 的幂） |
+	 * | `Segment.table.length` | 每段哈希表初始容量 | `1 << segmentShift`（2 的幂） |
+	 * | `resizeThreshold` | 每段扩容阈值 | `(int)(table.length * loadFactor)` |
+	 * | `referenceType` | 引用策略 | `WEAK / SOFT / STRONG` |
+	 *
+	 * ---
+	 *
+	 * ### 6  一句话记忆
+	 *
+	 * > **“先定锁数（2 的幂），再定每段容量（2 的幂），一次性建好所有 Segment，后续只扩段内表，不扩段数——这就是 ConcurrentReferenceHashMap 的初始化精髓。”**
 	 */
 	@SuppressWarnings("unchecked")
 	public ConcurrentReferenceHashMap(
@@ -179,6 +252,9 @@ public class ConcurrentReferenceHashMap<K, V> extends AbstractMap<K, V> implemen
 		this.shift = calculateShift(concurrencyLevel, MAXIMUM_CONCURRENCY_LEVEL);
 		int size = 1 << this.shift;
 		this.referenceType = referenceType;
+		/**
+		 *
+		 */
 		int roundedUpSegmentCapacity = (int) ((initialCapacity + size - 1L) / size);
 		int initialSize = 1 << calculateShift(roundedUpSegmentCapacity, MAXIMUM_SEGMENT_SIZE);
 		Segment[] segments = (Segment[]) Array.newInstance(Segment.class, size);

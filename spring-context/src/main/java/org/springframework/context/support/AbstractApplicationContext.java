@@ -521,7 +521,7 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 		 * 	存储在 方法区 / 元空间的 Klass 结构 里，本质上是 Class<?> 对象本身当成锁。
 		 *  synchronized static method()	Foo.class	所有调用该方法的线程互斥
 		 *
-		 *  象锁(Instance Lock):
+		 *  对象锁(Instance Lock):
 		 *    锁的是 this or 某个实例，每 new 一次就一把新锁，用来同步实例成员
 		 *    对象锁存储在 Java 对象头 Mark Word 里（64 bit 里占 2 bit + 指针）
 		 *    synchronized(obj) {} 或 synchronized instanceMethod()	obj or this	只有拿到同一把实例锁的线程互斥
@@ -533,19 +533,27 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 			// Tell the subclass to refresh the internal bean factory.
 			ConfigurableListableBeanFactory beanFactory = obtainFreshBeanFactory();
 
+			/**
+			 * 	1.设置 {@link StandardBeanExpressionResolver } 支持 SPEL 表达式
+			 * 	2.设置 {@link ResourceEditorRegistrar } 支持属性编辑转换
+			 * 	3.添加三个 BeanPostProcessor ： {@link ApplicationContextAwareProcessor }、 {@link ApplicationListenerDetector }、  {@link LoadTimeWeaverAwareProcessor }
+			 * 	4.注册6个 ignoredDependencyInterfaces：
+			 * 	  {@link EnvironmentAware }、 {@link EmbeddedValueResolverAware }、 {@link ResourceLoaderAware }、 {@link ApplicationEventPublisherAware }、
+			 * 	  {@link MessageSourceAware }、 {@link ApplicationContextAware }
+			 *    {@link org.springframework.beans.factory.support.DefaultListableBeanFactory } 默认带三个：
+			 *    	{@link org.springframework.beans.factory.BeanNameAware }、
+			 *    	{@link org.springframework.beans.factory.BeanFactoryAware }、
+			 *    	{@link org.springframework.beans.factory.BeanClassLoaderAware }
+			 * 	5.注册5个 resolvableDependencies：
+			 * 		{@link BeanFactory } --> beanFactory、{@link ResourceLoader }-->this、{@link ApplicationEventPublisher}-->this、
+			 * 	   {@link ApplicationContext }-->this
+			 * 	6.注册3个singletonObjects：environment、systemProperties、systemEnvironment
+			 */
 			// Prepare the bean factory for use in this context.
-			// 1.设置 StandardBeanExpressionResolver 支持 SPEL 表达式
-			// 2.设置 ResourceEditorRegistrar 支持属性编辑转换
-			// 3.添加三个BeanPostProcessor：ApplicationContextAwareProcessor、ApplicationListenerDetector、LoadTimeWeaverAwareProcessor
-			// 4.注册6个ignoredDependencyInterfaces：
-			// 		EnvironmentAware、EmbeddedValueResolverAware、ResourceLoaderAware、ApplicationEventPublisherAware、MessageSourceAware、ApplicationContextAware
-			// 5.注册5个resolvableDependencies：
-			// 	 BeanFactory.class-->beanFactory、ResourceLoader.class-->this、ApplicationEventPublisher.class-->this、ApplicationContext.class-->this
-			// 6.注册3个singletonObjects：environment、systemProperties、systemEnvironment
 			prepareBeanFactory(beanFactory);
 
 			try {
-				// Allows post-processing of the bean factory in context subclasses. 可以做beanFactoru做一些后置的处理
+				// Allows post-processing of the bean factory in context subclasses. 可以对beanFactory做一些个性化的处理
 				postProcessBeanFactory(beanFactory);
 
 				// Invoke factory processors registered as beans in the context.

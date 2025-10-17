@@ -67,11 +67,11 @@ final class PostProcessorRegistrationDelegate {
 	 * 		{@link EventListenerMethodProcessor}
 	 * 		{@link DefaultEventListenerFactory}
 	 * 只有 ConfigurationClassPostProcessor 是 {@link org.springframework.beans.factory.support.BeanDefinitionRegistryPostProcessor } 的实现,
-	 * 按照invokeBeanFactoryPostProcessors方法中的逻辑：
+	 * 按照 invokeBeanFactoryPostProcessors 方法中的逻辑：
 	 * 		1. 执行 postProcessBeanDefinitionRegistry
 	 * 	    2. 执行 postProcessBeanFactory
 	 * @param beanFactory
-	 * @param beanFactoryPostProcessors
+	 * @param beanFactoryPostProcessors 外部手动注册的
 	 */
 	public static void invokeBeanFactoryPostProcessors(
 			ConfigurableListableBeanFactory beanFactory, List<BeanFactoryPostProcessor> beanFactoryPostProcessors) {
@@ -79,12 +79,20 @@ final class PostProcessorRegistrationDelegate {
 		// Invoke BeanDefinitionRegistryPostProcessors first, if any. 先执行 postProcessBeanDefinitionRegistry
 		Set<String> processedBeans = new HashSet<>();
 
-		// 这些可以理解为都是手动注册的
+		/**
+		 * 1. 先执行 beanFactoryPostProcessors 中的 BeanDefinitionRegistryPostProcessor#postProcessBeanDefinitionRegistry
+		 * 2. 执行beanFactory中实现接口 PriorityOrdered 的 BeanDefinitionRegistryPostProcessor#postProcessBeanDefinitionRegistry
+		 * 3. 执行beanFactory中实现接口 Ordered 的 BeanDefinitionRegistryPostProcessor#postProcessBeanDefinitionRegistry
+		 * 4. 循环执行beanFactory中剩下的 BeanDefinitionRegistryPostProcessor#postProcessBeanDefinitionRegistry
+		 * 5. 执行beanFactory中 BeanFactoryPostProcessor#postProcessBeanFactory
+		 * 6. 执行 beanFactoryPostProcessors 中的 BeanFactoryPostProcessor#postProcessBeanFactory
+ 		 */
 		if (beanFactory instanceof BeanDefinitionRegistry) {
 			BeanDefinitionRegistry registry = (BeanDefinitionRegistry) beanFactory;
 			List<BeanFactoryPostProcessor> regularPostProcessors = new ArrayList<>();
 			List<BeanDefinitionRegistryPostProcessor> registryProcessors = new ArrayList<>();
 
+			//先执行外部手动注册进来的 BeanDefinitionRegistryPostProcessor#postProcessBeanDefinitionRegistry
 			for (BeanFactoryPostProcessor postProcessor : beanFactoryPostProcessors) {
 				if (postProcessor instanceof BeanDefinitionRegistryPostProcessor) {
 					BeanDefinitionRegistryPostProcessor registryProcessor = (BeanDefinitionRegistryPostProcessor) postProcessor;
@@ -126,7 +134,7 @@ final class PostProcessorRegistrationDelegate {
 			invokeBeanDefinitionRegistryPostProcessors(currentRegistryProcessors, registry);
 			currentRegistryProcessors.clear();
 
-			// Finally, invoke all other BeanDefinitionRegistryPostProcessors until no further ones appear.
+			// Finally, invoke all other BeanDefinitionRegistryPostProcessors until no further ones appear. reiterate：反复的说
 			boolean reiterate = true;
 			while (reiterate) {
 				reiterate = false;
@@ -153,6 +161,12 @@ final class PostProcessorRegistrationDelegate {
 			invokeBeanFactoryPostProcessors(beanFactoryPostProcessors, beanFactory);
 		}
 
+		/**
+		 * 到这为止，BeanDefinitionRegistryPostProcessor的所有实例都执行完毕了，开始执行 BeanFactoryPostProcessor#postProcessBeanFactory
+		 * 1. 先执行实现 PriorityOrdered 接口的
+		 * 2. 再执行实现 PriorityOrdered 接口的
+		 * 3. 最后执行 普通的
+		 */
 		// Do not initialize FactoryBeans here: We need to leave all regular beans
 		// uninitialized to let the bean factory post-processors apply to them!
 		String[] postProcessorNames = beanFactory.getBeanNamesForType(BeanFactoryPostProcessor.class, true, false);

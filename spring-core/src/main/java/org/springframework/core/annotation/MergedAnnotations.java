@@ -434,11 +434,23 @@ public interface MergedAnnotations extends Iterable<MergedAnnotation<Annotation>
 
 
 	/**
-	 * Search strategies supported by
+	 * Search strategies supported by 控制 “从多深、多大范围” 去搜索注解
 	 * {@link MergedAnnotations#from(AnnotatedElement, SearchStrategy)}.
 	 *
-	 * <p>Each strategy creates a different set of aggregates that will be
+	 * <p>Each strategy creates a different set of aggregates(聚合体) that will be
 	 * combined to create the final {@link MergedAnnotations}.
+	 *
+	 * DIRECT
+	 *    ⬇  + 父类@Inherited
+	 * INHERITED_ANNOTATIONS
+	 *    ⬇  + 所有父类
+	 * SUPERCLASS
+	 *    ⬇  + 所有接口
+	 * TYPE_HIERARCHY
+	 *    ⬇  + 封闭类及其子类
+	 * TYPE_HIERARCHY_AND_ENCLOSING_CLASSES
+	 *
+	 * DIRECT 最窄，只扫自己；INHERITED 只认 @Inherited 父类；SUPERCLASS 全父类；TYPE_HIERARCHY 把接口也拉进来；最外层再把封闭类全家桶扫光——五个策略，五个圈，按需挑圈取注解。
 	 */
 	enum SearchStrategy {
 
@@ -446,16 +458,18 @@ public interface MergedAnnotations extends Iterable<MergedAnnotation<Annotation>
 		 * Find only directly declared annotations, without considering
 		 * {@link Inherited @Inherited} annotations and without searching
 		 * superclasses or implemented interfaces.
+		 * 只扫当前元素本身，连 @Inherited 都不认
 		 */
 		DIRECT,
 
 		/**
-		 * Find all directly declared annotations as well as any
-		 * {@link Inherited @Inherited} superclass annotations. This strategy
-		 * is only really useful when used with {@link Class} types since the
-		 * {@link Inherited @Inherited} annotation is ignored for all other
+		 * Find all directly declared annotations as well as(以及) any {@link Inherited @Inherited} superclass annotations.
+		 * This strategy is only really useful when used with {@link Class} types
+		 * since the {@link Inherited @Inherited} annotation is ignored for all other
 		 * {@linkplain AnnotatedElement annotated elements}. This strategy does
 		 * not search implemented interfaces.
+		 *
+		 * 当前元素 + 被 @Inherited 继承的父类注解，不扫接口
 		 */
 		INHERITED_ANNOTATIONS,
 
@@ -464,6 +478,9 @@ public interface MergedAnnotations extends Iterable<MergedAnnotation<Annotation>
 		 * is similar to {@link #INHERITED_ANNOTATIONS} except the annotations
 		 * do not need to be meta-annotated with {@link Inherited @Inherited}.
 		 * This strategy does not search implemented interfaces.
+		 *
+		 * 当前元素 + 所有父类注解（不管有没有 @Inherited），仍不扫接口。
+		 * 场景：需要 类层级全覆盖，但 不关心接口。
 		 */
 		SUPERCLASS,
 
@@ -471,6 +488,9 @@ public interface MergedAnnotations extends Iterable<MergedAnnotation<Annotation>
 		 * Perform a full search of the entire type hierarchy, including
 		 * superclasses and implemented interfaces. Superclass annotations do
 		 * not need to be meta-annotated with {@link Inherited @Inherited}.
+		 *
+		 * 完整类层次 + 全部父接口，最常用默认策略。
+		 * 场景：Spring 自己 90% 的 findAnnotation 都选它，只要类型体系里出现过就算。
 		 */
 		TYPE_HIERARCHY,
 
@@ -482,6 +502,8 @@ public interface MergedAnnotations extends Iterable<MergedAnnotation<Annotation>
 		 * need to be meta-annotated with {@link Inherited @Inherited}. When
 		 * searching a {@link Method} source, this strategy is identical to
 		 * {@link #TYPE_HIERARCHY}.
+		 *
+		 * 在 TYPE_HIERARCHY 的基础上 再扫描封闭类（静态内部类、外部类）及其子类。
 		 */
 		TYPE_HIERARCHY_AND_ENCLOSING_CLASSES
 	}

@@ -24,7 +24,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 /**
- * Support class for throttling concurrent access to a specific resource.
+ * Support class for throttling(节流) concurrent access to a specific resource.
  *
  * <p>Designed for use as a base class, with the subclass invoking
  * the {@link #beforeAccess()} and {@link #afterAccess()} methods at

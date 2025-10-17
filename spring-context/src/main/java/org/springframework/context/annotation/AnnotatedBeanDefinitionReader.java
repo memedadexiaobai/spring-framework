@@ -89,11 +89,11 @@ public class AnnotatedBeanDefinitionReader {
 		/**
 		 * 注册6个BeanDefinition:
 		 *   {@link org.springframework.context.annotation.ConfigurationClassPostProcessor }
-		 *	 {@link AutowiredAnnotationBeanPostProcessor }
+		 *	 {@link org.springframework.beans.factory.annotation.AutowiredAnnotationBeanPostProcessor }
 		 * 	 {@link CommonAnnotationBeanPostProcessor }
 		 * 	 {@link org.springframework.orm.jpa.support.PersistenceAnnotationBeanPostProcessor } 支持JPA，可选
-		 * 	 {@link EventListenerMethodProcessor}
-		 * 	 {@link DefaultEventListenerFactory}
+		 * 	 {@link org.springframework.context.event.EventListenerMethodProcessor }
+		 * 	 {@link org.springframework.context.event.DefaultEventListenerFactory }
 		 */
 		AnnotationConfigUtils.registerAnnotationConfigProcessors(this.registry);
 	}

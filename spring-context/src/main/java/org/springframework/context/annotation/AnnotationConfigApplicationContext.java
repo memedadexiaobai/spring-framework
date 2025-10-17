@@ -61,10 +61,11 @@ public class AnnotationConfigApplicationContext extends GenericApplicationContex
 	/**
 	 * Create a new AnnotationConfigApplicationContext that needs to be populated
 	 * through {@link #register} calls and then manually {@linkplain #refresh refreshed}.
+	 * @see GenericApplicationContext 作为本类父类，会首先被调用创建 {@link DefaultListableBeanFactory} 作为 beanFactory
 	 */
 	public AnnotationConfigApplicationContext() {
 		// 创建  DefaultListableBeanFactory 作为 beanFactory
-		// DefaultListableBeanFactory 默认注册以下3个到 ignoredDependencyInterfaces：
+		// DefaultListableBeanFactory 默认注册以下3个接口到 ignoredDependencyInterfaces：
 		// 	 ignoreDependencyInterface(BeanNameAware.class);
 		//	 ignoreDependencyInterface(BeanFactoryAware.class);
 		//	 ignoreDependencyInterface(BeanClassLoaderAware.class);

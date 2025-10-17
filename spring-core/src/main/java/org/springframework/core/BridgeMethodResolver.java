@@ -73,13 +73,11 @@ public final class BridgeMethodResolver {
 		if (bridgedMethod == null) {
 			// Gather all methods with matching name and parameter size.
 			List<Method> candidateMethods = new ArrayList<>();
-			MethodFilter filter = candidateMethod ->
-					isBridgedCandidateFor(candidateMethod, bridgeMethod);
+			MethodFilter filter = candidateMethod -> isBridgedCandidateFor(candidateMethod, bridgeMethod);
 			ReflectionUtils.doWithMethods(bridgeMethod.getDeclaringClass(), candidateMethods::add, filter);
 			if (!candidateMethods.isEmpty()) {
 				bridgedMethod = candidateMethods.size() == 1 ?
-						candidateMethods.get(0) :
-						searchCandidates(candidateMethods, bridgeMethod);
+						candidateMethods.get(0) : searchCandidates(candidateMethods, bridgeMethod);
 			}
 			if (bridgedMethod == null) {
 				// A bridge method was passed in but we couldn't find the bridged method.

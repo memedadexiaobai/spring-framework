@@ -241,6 +241,38 @@ public abstract class ClassUtils {
 	 * @throws ClassNotFoundException if the class was not found
 	 * @throws LinkageError if the class file could not be loaded
 	 * @see Class#forName(String, boolean, ClassLoader)
+	 *
+	 * 这是 **JVM 对“数组类型”的内部描述字符串**（称为 *JNI type signature* 或 *class descriptor*）。
+	 *
+	 * | 符号 | 含义 | 示例 |
+	 * |---|---|---|
+	 * | `[` | **一维数组** | `[I` → `int[]` |
+	 * | `[[` | **二维数组** | `[[I` → `int[][]` |
+	 * | `L<类名>;` | **引用类型** | `Ljava/lang/String;` → `String` |
+	 *
+	 * ---
+	 *
+	 * ### 1  拆解给你看
+	 *
+	 * | 内部字符串 | Java 类型 |
+	 * |---|---|
+	 * | `[Ljava.lang.String;` | `String[]`（一维字符串数组） |
+	 * | `[[I` | `int[][]`（二维 int 数组） |
+	 * | `[[Ljava.lang.String;` | `String[][]`（二维字符串数组） |
+	 *
+	 * ---
+	 *
+	 * ### 2  在哪见到
+	 *
+	 * - `Class.getName()` 返回这类串
+	 * - `Method.getParameterTypes()` / `getReturnType()`
+	 * - 反射、JNI、ASM、代理生成代码里大量使用
+	 *
+	 * ---
+	 *
+	 * ### 3  记忆口诀
+	 *
+	 * > **“开头几个 `[` 就是几维，后面跟着元素类型；引用类型一定 `L...;` 包起来。”**
 	 */
 	public static Class<?> forName(String name, @Nullable ClassLoader classLoader)
 			throws ClassNotFoundException, LinkageError {
@@ -393,6 +425,45 @@ public abstract class ClassUtils {
 	 * @param clazz the class to analyze
 	 * @param classLoader the ClassLoader to potentially cache metadata in
 	 * (may be {@code null} which indicates the system class loader)
+	 *
+	 * **判断给定 `Class` 对象是否“安全”地缓存在指定 `ClassLoader` 作用域内**——
+	 * 即 **保证后续从该 `ClassLoader` 也能加载到同名（同字节码）Class**，避免 **不同 ClassLoader 出现同名异类** 的污染或 `ClassCastException`。
+	 *
+	 * ---
+	 *
+	 * ### 1  快速结论（先背口诀）
+	 *
+	 * > **“当前类加载器 = 目标类加载器，或在其祖先链上 → 安全；
+	 * > 若在子孙链上 → 不安全；
+	 * > 无血缘关系 → 兜底：尝试用目标加载器再 load 一次，成功且字节码相同才算安全。”**
+	 *
+	 * ---
+	 *
+	 * ### 2  逐段剖析
+	 *
+	 * | 代码段 | 意图 | 返回 |
+	 * |---|---|---|
+	 * | `target == classLoader` | 同一加载器 | ✅ true |
+	 * | `target == null` | 引导类加载器（Bootstrap）加载的类（如 `java.lang.String`）对任何用户传入的 `classLoader` 都安全 | ✅ true |
+	 * | `classLoader == null` | 用户传入的是 Bootstrap，但类由用户自定义加载器加载 → 无法隔离，直接判不安全 | ❌ false |
+	 * | **祖先链向上扫** | 只要 `classLoader` 的任意祖先 == `target` → 说明 **target 是 classLoader 的父级** → 安全 | ✅ true |
+	 * | **子孙链向下扫** | 只要 `target` 的任意祖先 == `classLoader` → 说明 **target 是 classLoader 的子级** → **不安全**（子加载器可能随时被卸载或替换） | ❌ false |
+	 * | **SecurityException 陷阱** | 某些容器（Applet、OSGi）禁止 `getParent()` → 捕获后走兜底 | - |
+	 * | **兜底 `isLoadable`** | 无血缘关系 → 用目标加载器再 `loadClass` 一次，**字节码相同**则安全 | ✅/❌ |
+	 *
+	 * ---
+	 *
+	 * ### 3  为什么“子孙链”不安全？
+	 *
+	 * - **子加载器可被随时销毁、重新创建** → 同名类字节码可能已变。
+	 * - **父加载器缓存的旧 Class 引用** 会导致 **ClassCastException** 或 **内存泄漏**。
+	 *   因此 Spring **拒绝缓存**这种场景。
+	 *
+	 * ---
+	 *
+	 * ### 4  一句话速记
+	 *
+	 * > **“祖先可缓存，子孙不可缓存；同器或 Bootstrap 直接安全；无血缘再 load 校验。”**
 	 */
 	public static boolean isCacheSafe(Class<?> clazz, @Nullable ClassLoader classLoader) {
 		Assert.notNull(clazz, "Class must not be null");
@@ -405,7 +476,7 @@ public abstract class ClassUtils {
 			if (classLoader == null) {
 				return false;
 			}
-			// Check for match in ancestors -> positive
+			// Check for match in ancestors(祖先) -> positive
 			ClassLoader current = classLoader;
 			while (current != null) {
 				current = current.getParent();
@@ -530,7 +601,7 @@ public abstract class ClassUtils {
 
 	/**
 	 * Check if the right-hand side type may be assigned to the left-hand side
-	 * type, assuming setting by reflection. Considers primitive wrapper
+	 * type, assuming setting by reflection. Considers primitive(原始) wrapper
 	 * classes as assignable to the corresponding primitive types.
 	 * @param lhsType the target type
 	 * @param rhsType the value type that should be assigned to the target type
@@ -1257,6 +1328,8 @@ public abstract class ClassUtils {
 	 * @return the specific target method, or the original method if the
 	 * {@code targetClass} does not implement it
 	 * @see #getInterfaceMethodIfPossible
+	 *
+	 * getMostSpecificMethod = “代理方法 → 原始方法”的翻译器：把 AOP/CGLIB 生成的代理方法还原成用户写的那个带注解、带泛型、带参数名的真实方法，供框架后续精确处理。
 	 */
 	public static Method getMostSpecificMethod(Method method, @Nullable Class<?> targetClass) {
 		if (targetClass != null && targetClass != method.getDeclaringClass() && isOverridable(method, targetClass)) {
@@ -1337,6 +1410,56 @@ public abstract class ClassUtils {
 	 * Determine whether the given method is overridable in the given target class.
 	 * @param method the method to check
 	 * @param targetClass the target class to check against
+	 *
+	 *                    这段代码是 **“Java 方法能否被合法重写（override）”** 的**静态规则实现**，
+	 * 核心依据是 **《Java 语言规范》11 章访问控制 + 包可见性**——
+	 * **只要方法不是 `private`，且调用方类与方法所在类处于“可看见”范围，就允许重写。**
+	 *
+	 * ---
+	 *
+	 * ### 1  三条分支对应 JLS 规则
+	 *
+	 * | 分支 | 条件 | 原理（JLS 条文） |
+	 * |---|---|---|
+	 * | ① | `private` | **private 方法不可被继承**，自然无法重写 → 直接 `false` |
+	 * | ② | `public` **或** `protected` | **public 全局可见，protected 对子类/同包可见** → 一定可重写 → `true` |
+	 * | ③ | **默认可见（package-private）** | 只有 **同包** 才能看见/继承/重写**；若调用方类（targetClass）与方法声明类同包 → `true`，否则 `false`** |
+	 *
+	 * ---
+	 *
+	 * ### 2  为什么需要 `targetClass == null` 也返回 `true`？
+	 *
+	 * - 当 **调用者还没确定具体子类**（例如只传了 `Method` 对象）时，**保守认为“同包”**，先放行，后续真正校验时再细化。
+	 * - 这是一种 **“延迟校验”策略**，避免过早拒绝。
+	 *
+	 * ---
+	 *
+	 * ### 3  举个例子
+	 *
+	 * ```java
+	 * package com.foo;
+	 * class Base {
+	 *     void pkgMethod() {}   // 默认可见
+	 *     public void pubMethod() {}
+	 *     private void prvMethod() {}
+	 * }
+	 *
+	 * package com.bar;
+	 * class Sub extends com.foo.Base {
+	 *     // 能否重写？
+	 *     // pkgMethod -> false（不同包）
+	 *     // pubMethod -> true（public）
+	 *     // prvMethod -> false（private 不可继承）
+	 * }
+	 * ```
+	 *
+	 * `isOverridable(...)` 会按上面规则返回对应布尔值。
+	 *
+	 * ---
+	 *
+	 * ### 4  一句话总结
+	 *
+	 * > **“private 直接否决；public/protected 全局放行；包可见必须同包——这就是 Java 重写访问控制的代码实现。”**
 	 */
 	private static boolean isOverridable(Method method, @Nullable Class<?> targetClass) {
 		if (Modifier.isPrivate(method.getModifiers())) {

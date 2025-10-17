@@ -444,7 +444,7 @@ abstract class AnnotationsScanner {
 		return null;
 	}
 
-	static Annotation[] getDeclaredAnnotations(AnnotatedElement source, boolean defensive) {
+	static Annotation[] getDeclaredAnnotations(AnnotatedElement source, boolean defensive) { // defensive防御性的
 		boolean cached = false;
 		Annotation[] annotations = declaredAnnotationCache.get(source);
 		if (annotations != null) {
@@ -456,7 +456,7 @@ abstract class AnnotationsScanner {
 				boolean allIgnored = true;
 				for (int i = 0; i < annotations.length; i++) {
 					Annotation annotation = annotations[i];
-					if (isIgnorable(annotation.annotationType()) ||
+					if (isIgnorable(annotation.annotationType()) || //只处理自定义注解
 							!AttributeMethods.forAnnotationType(annotation.annotationType()).isValid(annotation)) {
 						annotations[i] = null;
 					}
@@ -477,6 +477,17 @@ abstract class AnnotationsScanner {
 		return annotations.clone();
 	}
 
+	/**
+	 * | 被忽略类别              | 例子                                            | 忽略原因                     |
+	 * | ------------------ | --------------------------------------------- | ------------------------ |
+	 * | **JDK 通用注解**       | `@Override`、`@Deprecated`、`@SuppressWarnings` | 与业务属性无关，纯粹编译器/IDE 提示     |
+	 * | **Spring 内部工具注解**  | `@AliasFor`                                   | 只用于注解别名解析，**不是业务元数据**    |
+	 * | **Java 8+ 重复注解容器** | 自动生成的 `xxx[]` 容器注解                            | Spring 在更低层已拆成重复注解，无需再处理 |
+	 *
+	 * 这里不是“跳过 Spring 注解”，而是把“对业务无意义的 JDK/Spring 工具注解 + 非法注解”统统清掉，只保留真正需要参与映射/合并的自定义注解，减少噪音与风险。
+	 * @param annotationType
+	 * @return
+	 */
 	private static boolean isIgnorable(Class<?> annotationType) {
 		return AnnotationFilter.PLAIN.matches(annotationType);
 	}
