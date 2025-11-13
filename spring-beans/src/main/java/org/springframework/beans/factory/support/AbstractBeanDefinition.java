@@ -609,7 +609,7 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 	public int getResolvedAutowireMode() {
 		if (this.autowireMode == AUTOWIRE_AUTODETECT) {
 			// Work out whether to apply setter autowiring or constructor autowiring.
-			// If it has a no-arg constructor it's deemed to be setter autowiring,
+			// If it has a no-arg constructor it's deemed(视为) to be setter autowiring,
 			// otherwise we'll try constructor autowiring.
 			Constructor<?>[] constructors = getBeanClass().getConstructors();
 			for (Constructor<?> constructor : constructors) {
@@ -1150,7 +1150,7 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 					"' on class [" + getBeanClassName() + "]");
 		}
 		else if (count == 1) {
-			// Mark override as not overloaded, to avoid the overhead of arg type checking.
+			// Mark override as not overloaded, to avoid the overhead(开销) of arg type checking.
 			mo.setOverloaded(false);
 		}
 	}

@@ -39,6 +39,8 @@ import org.springframework.util.ConcurrentReferenceHashMap;
  * <p>This class is designed to be cached so that meta-annotations only need to
  * be searched once, regardless of how many times they are actually used.
  *
+ *  这个类代表的是一个 注解 包括其所有元注解的视图 元注解是注解在本注解上边的注解
+ *
  * @author Phillip Webb
  * @since 5.2
  * @see AnnotationTypeMapping
@@ -47,6 +49,7 @@ final class AnnotationTypeMappings {
 
 	private static final IntrospectionFailureLogger failureLogger = IntrospectionFailureLogger.DEBUG;
 
+	// AnnotationFilter 本质上是作用域的划分
 	private static final Map<AnnotationFilter, Cache> standardRepeatablesCache = new ConcurrentReferenceHashMap<>();
 
 	private static final Map<AnnotationFilter, Cache> noRepeatablesCache = new ConcurrentReferenceHashMap<>();
@@ -70,6 +73,11 @@ final class AnnotationTypeMappings {
 	}
 
 
+	/**
+	 * 使用 Deque 实现广度优先遍历算法，查出所有的注解放到 mappings
+	 * 同时 AnnotationTypeMappings 通过 source 来生成一个 树 型结构
+	 * @param annotationType
+	 */
 	private void addAllMappings(Class<? extends Annotation> annotationType) {
 		Deque<AnnotationTypeMapping> queue = new ArrayDeque<>();
 		addIfPossible(queue, null, annotationType, null);
@@ -121,7 +129,8 @@ final class AnnotationTypeMappings {
 	}
 
 	private boolean isMappable(AnnotationTypeMapping source, @Nullable Annotation metaAnnotation) {
-		return (metaAnnotation != null && !this.filter.matches(metaAnnotation) &&
+		return (metaAnnotation != null &&
+				!this.filter.matches(metaAnnotation) &&
 				!AnnotationFilter.PLAIN.matches(source.getAnnotationType()) &&
 				!isAlreadyMapped(source, metaAnnotation));
 	}

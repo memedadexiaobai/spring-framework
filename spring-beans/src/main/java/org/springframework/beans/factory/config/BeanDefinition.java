@@ -37,6 +37,9 @@ import org.springframework.lang.Nullable;
  * @see ConfigurableListableBeanFactory#getBeanDefinition
  * @see org.springframework.beans.factory.support.RootBeanDefinition
  * @see org.springframework.beans.factory.support.ChildBeanDefinition
+ * AttributeAccessor 代表属性的访问
+ * BeanMetadataElement 代表实际配置的是哪个类 也就是 数据源  bean元数据元素从名字上也能看出来
+ * BeanDefinition 这里代表的是 bean 里边的所有信息
  */
 public interface BeanDefinition extends AttributeAccessor, BeanMetadataElement {
 

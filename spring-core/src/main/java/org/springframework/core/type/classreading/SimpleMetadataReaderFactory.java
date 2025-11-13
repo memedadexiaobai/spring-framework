@@ -31,6 +31,8 @@ import org.springframework.util.ClassUtils;
  *
  * @author Juergen Hoeller
  * @since 2.5
+ *
+ * 总结下：SimpleMetadataReaderFactory通过ResourceLoader读取Resource来生成对应的SimpleMetadataReader，而SimpleMetadataReader用来实际读取具体的信息
  */
 public class SimpleMetadataReaderFactory implements MetadataReaderFactory {
 
@@ -100,6 +102,7 @@ public class SimpleMetadataReaderFactory implements MetadataReaderFactory {
 
 	@Override
 	public MetadataReader getMetadataReader(Resource resource) throws IOException {
+		// 利用ASM读取类的相关信息
 		return new SimpleMetadataReader(resource, this.resourceLoader.getClassLoader());
 	}
 

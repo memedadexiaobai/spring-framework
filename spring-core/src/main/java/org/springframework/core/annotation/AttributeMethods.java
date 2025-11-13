@@ -29,8 +29,8 @@ import org.springframework.util.ReflectionUtils;
 
 /**
  * Provides a quick way to access the attribute methods of an {@link Annotation}
- * with consistent ordering as well as a few useful utility methods.
- *
+ * with consistent(一致的，持续的) ordering as well as a few useful utility methods.
+ * 一句话：解析 注解 声明的符合条件： 参数个数等于0并且返回值不是void 的方法 封装到 AttributeMethods
  * @author Phillip Webb
  * @since 5.2
  */
@@ -109,6 +109,8 @@ final class AttributeMethods {
 		for (int i = 0; i < size(); i++) {
 			if (canThrowTypeNotPresentException(i)) {
 				try {
+					// 回调方法不会抛出类型不存在异常来判断注解的有效性 防止出现加载不到的类
+					// this.canThrowTypeNotPresentException[i] = (type == Class.class || type == Class[].class || type.isEnum());
 					get(i).invoke(annotation);
 				}
 				catch (Throwable ex) {

@@ -66,7 +66,8 @@ final class PostProcessorRegistrationDelegate {
 	 * 		{@link org.springframework.orm.jpa.support.PersistenceAnnotationBeanPostProcessor }
 	 * 		{@link EventListenerMethodProcessor}
 	 * 		{@link DefaultEventListenerFactory}
-	 * 只有 ConfigurationClassPostProcessor 是 {@link org.springframework.beans.factory.support.BeanDefinitionRegistryPostProcessor } 的实现,
+	 * 只有 	{@link org.springframework.context.annotation.ConfigurationClassPostProcessor }
+	 * 		是 {@link org.springframework.beans.factory.support.BeanDefinitionRegistryPostProcessor } 的实现,
 	 * 按照 invokeBeanFactoryPostProcessors 方法中的逻辑：
 	 * 		1. 执行 postProcessBeanDefinitionRegistry
 	 * 	    2. 执行 postProcessBeanFactory

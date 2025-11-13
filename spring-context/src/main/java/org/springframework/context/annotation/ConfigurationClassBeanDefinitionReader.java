@@ -137,14 +137,18 @@ class ConfigurationClassBeanDefinitionReader {
 			return;
 		}
 
+		// 生成的是 AnnotatedGenericBeanDefinition
 		if (configClass.isImported()) {
 			registerBeanDefinitionForImportedConfigurationClass(configClass);
 		}
+		// 生成的是 ConfigurationClassBeanDefinition
 		for (BeanMethod beanMethod : configClass.getBeanMethods()) {
 			loadBeanDefinitionsForBeanMethod(beanMethod);
 		}
 
+		// 生成的是 AbstractBeanDefinition
 		loadBeanDefinitionsFromImportedResources(configClass.getImportedResources());
+
 		loadBeanDefinitionsFromRegistrars(configClass.getImportBeanDefinitionRegistrars());
 	}
 
@@ -230,6 +234,7 @@ class ConfigurationClassBeanDefinitionReader {
 			beanDef.setUniqueFactoryMethodName(methodName);
 		}
 
+		// 反射获取元数据的时候 可以直接把 对应的方法给设置上
 		if (metadata instanceof StandardMethodMetadata) {
 			beanDef.setResolvedFactoryMethod(((StandardMethodMetadata) metadata).getIntrospectedMethod());
 		}
@@ -460,6 +465,7 @@ class ConfigurationClassBeanDefinitionReader {
 		public boolean shouldSkip(ConfigurationClass configClass) {
 			Boolean skip = this.skipped.get(configClass);
 			if (skip == null) {
+				// 这个 配置类 是被 别的类 导入进来的 包含内部类和 @Import 2种情况
 				if (configClass.isImported()) {
 					boolean allSkipped = true;
 					for (ConfigurationClass importedBy : configClass.getImportedBy()) {

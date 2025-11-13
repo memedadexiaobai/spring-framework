@@ -52,6 +52,7 @@ final class AnnotationTypeMapping {
 	@Nullable
 	private final AnnotationTypeMapping source;
 
+	// 这个root是 要解析的第一个注解
 	private final AnnotationTypeMapping root;
 
 	private final int distance;
@@ -67,6 +68,7 @@ final class AnnotationTypeMapping {
 
 	private final MirrorSets mirrorSets;
 
+	// aliasMappings 数组中 值大于-1代表是 根方法的索引值
 	private final int[] aliasMappings;
 
 	private final int[] conventionMappings;
@@ -75,13 +77,37 @@ final class AnnotationTypeMapping {
 
 	private final AnnotationTypeMapping[] annotationValueSource;
 
+	// key是别名方法，value是实际方法 比如A 别名是 B，key是B，value是A
 	private final Map<Method, List<Method>> aliasedBy;
 
 	private final boolean synthesizable;
 
+	// claimedAliases 所有已处理过的别名
 	private final Set<Method> claimedAliases = new HashSet<>();
 
 
+	/**
+	 * @see AnnotationTypeMappings 这个结构是倒序往回追溯
+	 * @Retention(RetentionPolicy.RUNTIME)
+	 * @A
+	 * @B
+	 * @interface MetaAnnotated {
+	 * }
+	 *
+	 * @Retention(RetentionPolicy.RUNTIME)
+	 * @AA
+	 * @AB
+	 * @interface A {
+	 * }
+	 *
+	 * @Retention(RetentionPolicy.RUNTIME)
+	 * @interface B {
+	 * }
+	 * 比如从 @MetaAnnotated 开始解析，@MetaAnnotated source为null @A source为 @MetaAnnotated
+	 * @param source 是被该注解注解的注解
+	 * @param annotationType 要解析的注解对应的class类型
+	 * @param annotation 要解析的注解
+	 */
 	AnnotationTypeMapping(@Nullable AnnotationTypeMapping source,
 			Class<? extends Annotation> annotationType, @Nullable Annotation annotation) {
 
@@ -89,9 +115,7 @@ final class AnnotationTypeMapping {
 		this.root = (source != null ? source.getRoot() : this);
 		this.distance = (source == null ? 0 : source.getDistance() + 1);
 		this.annotationType = annotationType;
-		this.metaTypes = merge(
-				source != null ? source.getMetaTypes() : null,
-				annotationType);
+		this.metaTypes = merge(source != null ? source.getMetaTypes() : null, annotationType);
 		this.annotation = annotation;
 		this.attributes = AttributeMethods.forAnnotationType(annotationType);
 		this.mirrorSets = new MirrorSets();
@@ -177,6 +201,7 @@ final class AnnotationTypeMapping {
 					AttributeMethods.describe(attribute),
 					AttributeMethods.describe(target)));
 		}
+		// 同一个注解内的别名
 		if (isAliasPair(target) && checkAliasPair) {
 			AliasFor targetAliasFor = target.getAnnotation(AliasFor.class);
 			if (targetAliasFor != null) {
@@ -192,6 +217,20 @@ final class AnnotationTypeMapping {
 		return target;
 	}
 
+	/**
+	 * 用于判断一个方法是否属于当前注解类本身，从而验证别名关系的合法性。
+	 * @Target(ElementType.TYPE)
+	 * @Retention(RetentionPolicy.RUNTIME)
+	 * public @interface MyConfig {
+	 *     @AliasFor("location")
+	 *     String value() default "";
+	 *
+	 *     @AliasFor("value")
+	 *     String location() default "";
+	 * }
+	 * @param target
+	 * @return
+	 */
 	private boolean isAliasPair(Method target) {
 		return (this.annotationType == target.getDeclaringClass());
 	}
@@ -204,8 +243,12 @@ final class AnnotationTypeMapping {
 		List<Method> aliases = new ArrayList<>();
 		for (int i = 0; i < this.attributes.size(); i++) {
 			aliases.clear();
+			// 这里添加的是本方法
 			aliases.add(this.attributes.get(i));
+			// 这里会把 本方法的别名方法 本方法的别名方法的别名方法 统一收集起来
+			// aliases 是一个层级的结构，代表的是 从本注解方法开始 向上收集的所有别名方法
 			collectAliases(aliases);
+			// 如果本方法没别名，那么 aliases.size() 始终为 1，直接跳过。 只要 >1 就说明出现了 @AliasFor，需要归一化。
 			if (aliases.size() > 1) {
 				processAliases(i, aliases);
 			}
@@ -227,12 +270,16 @@ final class AnnotationTypeMapping {
 	}
 
 	private void processAliases(int attributeIndex, List<Method> aliases) {
+		// attributeIndex 代表的是 要解析的方法 在该注解中的索引
+		// rootAttributeIndex 代表的是 所有别名方法中 第一次出现在 根注解 中的 方法的索引
 		int rootAttributeIndex = getFirstRootAttributeIndex(aliases);
 		AnnotationTypeMapping mapping = this;
 		while (mapping != null) {
+			// 只给非根层写重定向，并且确保已经找到根属性； 根层自己就是基准，不需要再指回自己
 			if (rootAttributeIndex != -1 && mapping != this.root) {
 				for (int i = 0; i < mapping.attributes.size(); i++) {
 					if (aliases.contains(mapping.attributes.get(i))) {
+						// 将别名映射到根方法的索引
 						mapping.aliasMappings[i] = rootAttributeIndex;
 					}
 				}
@@ -240,6 +287,7 @@ final class AnnotationTypeMapping {
 			mapping.mirrorSets.updateFrom(aliases);
 			mapping.claimedAliases.addAll(aliases);
 			if (mapping.annotation != null) {
+				// 将所有的别名方法的索引统一到一个值
 				int[] resolvedMirrors = mapping.mirrorSets.resolve(null,
 						mapping.annotation, ReflectionUtils::invokeMethod);
 				for (int i = 0; i < mapping.attributes.size(); i++) {
@@ -274,6 +322,7 @@ final class AnnotationTypeMapping {
 			MirrorSet mirrors = getMirrorSets().getAssigned(i);
 			int mapped = rootAttributes.indexOf(name);
 			if (!MergedAnnotation.VALUE.equals(name) && mapped != -1) {
+				// 在根注解中可以找到这个方法
 				mappings[i] = mapped;
 				if (mirrors != null) {
 					for (int j = 0; j < mirrors.size(); j++) {
@@ -533,7 +582,6 @@ final class AnnotationTypeMapping {
 		return this.synthesizable;
 	}
 
-
 	private static int[] filledIntArray(int size) {
 		int[] array = new int[size];
 		Arrays.fill(array, -1);
@@ -608,8 +656,10 @@ final class AnnotationTypeMapping {
 	 */
 	class MirrorSets {
 
+		// 有别名的索引均指向 同一个 MirrorSet
 		private MirrorSet[] mirrorSets;
 
+		// assigned 索引 和 attributes 索引 相对应，当有内部别名的时候，对应的位置为 MirrorSet
 		private final MirrorSet[] assigned;
 
 		MirrorSets() {
@@ -617,14 +667,32 @@ final class AnnotationTypeMapping {
 			this.mirrorSets = EMPTY_MIRROR_SETS;
 		}
 
+		/**
+		 * aliases 可以理解为 根注解，即解析的注解 里边的方法 及其 他的别名方法
+		 *
+		 * @interface Demo {
+		 *     @AliasFor("loc")
+		 *     String value() default "";
+		 *
+		 *     @AliasFor("value")
+		 *     String loc() default "";
+		 *
+		 *     String other() default "";
+		 * }
+		 * MirrorSets 属性 assigned[0] = mirrorSet   assigned[1] = mirrorSet  assigned[2] = null
+		 * mirrorSet 属性 indexes[0] = 0, index[1] = 1 ,size 为 mirrorSet 个数
+		 * @param aliases
+		 */
 		void updateFrom(Collection<Method> aliases) {
 			MirrorSet mirrorSet = null;
 			int size = 0;
 			int last = -1;
 			for (int i = 0; i < attributes.size(); i++) {
 				Method attribute = attributes.get(i);
+				// 找到 根注解 的 有别名的方法 这个是 根方法 可以理解为所有别名方法都绑定到这个根方法
 				if (aliases.contains(attribute)) {
 					size++;
+					// size > 1 针对内部别名的情况处理
 					if (size > 1) {
 						if (mirrorSet == null) {
 							mirrorSet = new MirrorSet();
@@ -657,14 +725,18 @@ final class AnnotationTypeMapping {
 		}
 
 		int[] resolve(@Nullable Object source, @Nullable Object annotation, ValueExtractor valueExtractor) {
-			int[] result = new int[attributes.size()];
+			int[] result = new int[attributes.size()]; // result 值为 attributes 索引
 			for (int i = 0; i < result.length; i++) {
 				result[i] = i;
 			}
+			// 遍历有值的 mirrorSet
 			for (int i = 0; i < size(); i++) {
 				MirrorSet mirrorSet = get(i);
+				// 按照方法顺序解析出的最后一个 attributes 的索引
 				int resolved = mirrorSet.resolve(source, annotation, valueExtractor);
+				// 将 result 索引中的所有指向都归一到 resolved
 				for (int j = 0; j < mirrorSet.size; j++) {
+					// 将 attributes 所有索引统一到 resolved
 					result[mirrorSet.indexes[j]] = resolved;
 				}
 			}
@@ -679,38 +751,43 @@ final class AnnotationTypeMapping {
 
 			private int size;
 
+			// indexes 值为 assigned 索引
 			private final int[] indexes = new int[attributes.size()];
 
+			// size 代表 assigned里边有多少赋值的数据，size以下的数据全部填充为对应的索引值
 			void update() {
 				this.size = 0;
 				Arrays.fill(this.indexes, -1);
 				for (int i = 0; i < MirrorSets.this.assigned.length; i++) {
+					// 存在有null的情况，说明没赋值 这里遍历的是全部的 assigned
 					if (MirrorSets.this.assigned[i] == this) {
-						this.indexes[this.size] = i;
+						this.indexes[this.size] = i; // 这里的索引 i 不仅代表 assigned 的索引，也代表 attributes 的索引
 						this.size++;
 					}
 				}
 			}
 
 			<A> int resolve(@Nullable Object source, @Nullable A annotation, ValueExtractor valueExtractor) {
-				int result = -1;
+				int result = -1; // result 代表的不仅是 assigned 的索引，也是 attributes 所对应的索引
 				Object lastValue = null;
 				for (int i = 0; i < this.size; i++) {
 					Method attribute = attributes.get(this.indexes[i]);
 					Object value = valueExtractor.extract(attribute, annotation);
 					boolean isDefaultValue = (value == null ||
 							isEquivalentToDefaultValue(attribute, value, valueExtractor));
+					// 默认值的处理
 					if (isDefaultValue || ObjectUtils.nullSafeEquals(lastValue, value)) {
 						if (result == -1) {
 							result = this.indexes[i];
 						}
 						continue;
 					}
+					// AliasFor 注解的 2个属性的值得相等
 					if (lastValue != null && !ObjectUtils.nullSafeEquals(lastValue, value)) {
 						String on = (source != null) ? " declared on " + source : "";
 						throw new AnnotationConfigurationException(String.format(
 								"Different @AliasFor mirror values for annotation [%s]%s; attribute '%s' " +
-								"and its alias '%s' are declared with values of [%s] and [%s].",
+										"and its alias '%s' are declared with values of [%s] and [%s].",
 								getAnnotationType().getName(), on,
 								attributes.get(result).getName(),
 								attribute.getName(),
@@ -720,7 +797,7 @@ final class AnnotationTypeMapping {
 					result = this.indexes[i];
 					lastValue = value;
 				}
-				return result;
+				return result; // 返回的是最后一个的索引值
 			}
 
 			int size() {

@@ -243,6 +243,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 			String name, @Nullable Class<T> requiredType, @Nullable Object[] args, boolean typeCheckOnly)
 			throws BeansException {
 
+		// 获取真正的beanName 排除别名和factoryBean的情况
 		String beanName = transformedBeanName(name);
 		Object bean;
 
@@ -258,12 +259,13 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 					logger.trace("Returning cached instance of singleton bean '" + beanName + "'");
 				}
 			}
+			//针对factoryBean的处理
 			bean = getObjectForBeanInstance(sharedInstance, name, beanName, null);
 		}
 
 		else {
 			// Fail if we're already creating this bean instance:
-			// We're assumably within a circular reference.
+			// We're assumable within a circular reference.
 			if (isPrototypeCurrentlyInCreation(beanName)) {
 				throw new BeanCurrentlyInCreationException(beanName);
 			}
@@ -1311,6 +1313,19 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	 * or {@code null} in case of a top-level bean
 	 * @return a (potentially merged) RootBeanDefinition for the given bean
 	 * @throws BeanDefinitionStoreException in case of an invalid bean definition
+	 *
+	 * 核心目的：解决 Bean 定义的继承与覆盖问题
+	 * Spring 允许通过 parent 属性实现 Bean 定义继承：
+	 * xml
+	 * 复制
+	 * <bean id="abstractParent" abstract="true" class="com.Parent">
+	 *     <property name="commonProp" value="shared"/>
+	 * </bean>
+	 *
+	 * <bean id="concreteChild" parent="abstractParent" class="com.Child">
+	 *     <property name="specificProp" value="override"/>
+	 * </bean>
+	 * 问题：子定义只包含差异部分，运行时需要一个完整、自洽的 RootBeanDefinition。这个方法就是将父子定义"合并"成最终可用的完整定义。
 	 */
 	protected RootBeanDefinition getMergedBeanDefinition(
 			String beanName, BeanDefinition bd, @Nullable BeanDefinition containingBd)
@@ -1321,12 +1336,21 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 			RootBeanDefinition previous = null;
 
 			// Check with full lock now in order to enforce the same merged instance.
+			// 原因：区分外部 Bean 和内部 Bean（nested/inner bean）：
+			// 外部 Bean：独立存在，可以缓存（如 concreteChild）
+			// 内部 Bean：作用域依附于外部 Bean，不能缓存（如 <property><bean/></property> 中的匿名 Bean）
+			// 内部 Bean 每次都需要重新合并，因为它可能被不同的外部 Bean 包含
 			if (containingBd == null) {
 				mbd = this.mergedBeanDefinitions.get(beanName);
 			}
 
+			// 支持动态刷新 Bean 定义（如 Spring Cloud 配置中心刷新）：
+			// 当 Bean 定义的元数据（如 @RefreshScope）变化时，标记为 stale = true
+			// 下次获取时重新合并，而不是返回旧的缓存
+			// 这是 Spring Cloud 动态配置能力的基础机制
 			if (mbd == null || mbd.stale) {
 				previous = mbd;
+				//代理类的时候会有 parentName
 				if (bd.getParentName() == null) {
 					// Use copy of given root bean definition.
 					if (bd instanceof RootBeanDefinition) {
@@ -1341,6 +1365,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 					BeanDefinition pbd;
 					try {
 						String parentBeanName = transformedBeanName(bd.getParentName());
+						// 解决循环依赖：通过 transformedBeanName() 和 !beanName.equals(parentBeanName) 防止自己引用自己
 						if (!beanName.equals(parentBeanName)) {
 							pbd = getMergedBeanDefinition(parentBeanName);
 						}
@@ -1361,6 +1386,8 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 								"Could not resolve parent bean definition '" + bd.getParentName() + "'", ex);
 					}
 					// Deep copy with overridden values.
+					// 递归优先：父定义必须先合并完成，子定义才能继承完整信息
+					// overrideFrom()：只覆盖子定义中显式指定的属性，继承其余所有父定义配置
 					mbd = new RootBeanDefinition(pbd);
 					mbd.overrideFrom(bd);
 				}
@@ -1374,6 +1401,12 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 				// Let's correct this on the fly here, since this might be the result of
 				// parent-child merging for the outer bean, in which case the original inner bean
 				// definition will not have inherited the merged outer bean's singleton status.
+				// 原因：Spring 的作用域传播规则：
+				//	场景：一个 Prototype 外部 Bean 包含了一个 Singleton 内部 Bean
+				//	问题：内部 Bean 的生命周期不能长于外部 Bean
+				//	解决方案：强制将内部 Bean 的作用域改为外部 Bean 的作用域
+				//		外部 Prototype + 内部 Singleton → 内部变为 Prototype
+				//		保证"容器销毁时，内部 Bean 能正确清理"
 				if (containingBd != null && !containingBd.isSingleton() && mbd.isSingleton()) {
 					mbd.setScope(containingBd.getScope());
 				}
@@ -1385,6 +1418,10 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 				}
 			}
 			if (previous != null) {
+				//原因：性能优化：
+				//	previous 是过期的缓存（stale），但它的某些昂贵计算结果仍然有效
+				//	例如：已解析的类对象 (resolvedTargetType)、已解析的工厂方法 (factoryMethod)
+				//	避免重新加载类、重新解析元数据，提升刷新性能
 				copyRelevantMergedBeanDefinitionCaches(previous, mbd);
 			}
 			return mbd;

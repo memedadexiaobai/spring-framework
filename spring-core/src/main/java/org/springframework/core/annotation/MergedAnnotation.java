@@ -34,7 +34,7 @@ import org.springframework.lang.Nullable;
 
 /**
  * A single merged annotation returned from a {@link MergedAnnotations}
- * collection. Presents a view onto an annotation where attribute values may
+ * collection. Presents a view onto(到...上) an annotation where attribute values may
  * have been "merged" from different source values.
  *
  * <p>Attribute values may be accessed using the various {@code get} methods.
@@ -45,7 +45,7 @@ import org.springframework.lang.Nullable;
  * For example, it is not possible to call {@link #getString(String)} if the
  * underlying attribute is an {@code int}. The only exception to this rule is
  * {@code Class} and {@code Class[]} values which may be accessed as
- * {@code String} and {@code String[]} respectively to prevent potential early
+ * {@code String} and {@code String[]} respectively(分别) to prevent potential early
  * class initialization.
  *
  * <p>If necessary, a {@code MergedAnnotation} can be {@linkplain #synthesize()
@@ -83,8 +83,8 @@ public interface MergedAnnotation<A extends Annotation> {
 	boolean isPresent();
 
 	/**
-	 * Determine if the annotation is directly present on the source.
-	 * <p>A directly present annotation is one that the user has explicitly
+	 * Determine if the annotation is directly present(目前，现在，存在) on the source.
+	 * <p>A directly present annotation is one that the user has explicitly(明确的)
 	 * declared and not one that is {@linkplain #isMetaPresent() meta-present}
 	 * or {@link Inherited @Inherited}.
 	 * @return {@code true} if the annotation is directly present
@@ -101,12 +101,12 @@ public interface MergedAnnotation<A extends Annotation> {
 	boolean isMetaPresent();
 
 	/**
-	 * Get the distance of this annotation related to its use as a
-	 * meta-annotation.
-	 * <p>A directly declared annotation has a distance of {@code 0}, a
-	 * meta-annotation has a distance of {@code 1}, a meta-annotation on a
-	 * meta-annotation has a distance of {@code 2}, etc. A {@linkplain #missing()
-	 * missing} annotation will always return a distance of {@code -1}.
+	 * Get the distance of this annotation related to its use as a meta-annotation.
+	 *
+	 * <p>A directly declared annotation has a distance of {@code 0},
+	 * a meta-annotation has a distance of {@code 1},
+	 * a meta-annotation on a meta-annotation has a distance of {@code 2}, etc.
+	 * A {@linkplain #missing() missing} annotation will always return a distance of {@code -1}.
 	 * @return the annotation distance or {@code -1} if the annotation is missing
 	 */
 	int getDistance();
@@ -127,8 +127,8 @@ public interface MergedAnnotation<A extends Annotation> {
 	 * {@code null} if the source is not known.
 	 * <p>If this merged annotation was created
 	 * {@link MergedAnnotations#from(AnnotatedElement) from} an
-	 * {@link AnnotatedElement} then this source will be an element of the same
-	 * type. If the annotation was loaded without using reflection, the source
+	 * {@link AnnotatedElement} then this source will be an element of the same type.
+	 * If the annotation was loaded without using reflection(反射), the source
 	 * can be of any type, but should have a sensible {@code toString()}.
 	 * Meta-annotations will always return the same source as the
 	 * {@link #getRoot() root}.
@@ -451,7 +451,7 @@ public interface MergedAnnotation<A extends Annotation> {
 	MergedAnnotation<A> withNonMergedAttributes();
 
 	/**
-	 * Create a new mutable {@link AnnotationAttributes} instance from this
+	 * Create a new mutable(可变的) {@link AnnotationAttributes} instance from this
 	 * merged annotation.
 	 * <p>The {@link Adapt adaptations} may be used to change the way that values
 	 * are added.
@@ -625,7 +625,7 @@ public interface MergedAnnotation<A extends Annotation> {
 
 		/**
 		 * Adapt nested annotation or annotation arrays to maps rather
-		 * than synthesizing the values.
+		 * than synthesizing(合成的) the values.
 		 */
 		ANNOTATION_TO_MAP;
 
