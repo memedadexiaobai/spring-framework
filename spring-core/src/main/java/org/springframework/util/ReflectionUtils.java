@@ -418,7 +418,7 @@ public abstract class ReflectionUtils {
 				if (method.getName().equals(existingMethod.getName()) &&
 						method.getParameterCount() == existingMethod.getParameterCount() &&
 						Arrays.equals(method.getParameterTypes(), existingMethod.getParameterTypes())) {
-					// Is this a covariant return type situation?
+					// Is this a covariant return type situation?  左边是爹，右边是娃；爹.isAssignableFrom(娃) → true
 					if (existingMethod.getReturnType() != method.getReturnType() &&
 							existingMethod.getReturnType().isAssignableFrom(method.getReturnType())) {
 						methodBeingOverriddenWithCovariantReturnType = existingMethod;

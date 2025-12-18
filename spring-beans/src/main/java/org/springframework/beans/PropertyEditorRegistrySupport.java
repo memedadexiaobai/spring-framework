@@ -195,7 +195,7 @@ public class PropertyEditorRegistrySupport implements PropertyEditorRegistry {
 	}
 
 	/**
-	 * Actually register the default editors for this registry instance.
+	 * Actually register the default editors for this registry instance. 这些都是实现了jdk自带的PropertyEditorSupport
 	 */
 	private void createDefaultEditors() {
 		this.defaultEditors = new HashMap<>(64);
@@ -546,12 +546,13 @@ public class PropertyEditorRegistrySupport implements PropertyEditorRegistry {
 			// then return PropertyEditor if not registered for Collection or array type.
 			// (If not registered for Collection or array, it is assumed to be intended
 			// for elements.)
-			if (this.registeredType == null ||
-					(requiredType != null &&
-					(ClassUtils.isAssignable(this.registeredType, requiredType) ||
-					ClassUtils.isAssignable(requiredType, this.registeredType))) ||
-					(requiredType == null &&
-					(!Collection.class.isAssignableFrom(this.registeredType) && !this.registeredType.isArray()))) {
+			if (this.registeredType == null
+					||
+					(requiredType != null && (ClassUtils.isAssignable(this.registeredType, requiredType)
+							|| ClassUtils.isAssignable(requiredType, this.registeredType)))
+					||
+					(requiredType == null && (!Collection.class.isAssignableFrom(this.registeredType) && !this.registeredType.isArray()))
+			) {
 				return this.propertyEditor;
 			}
 			else {

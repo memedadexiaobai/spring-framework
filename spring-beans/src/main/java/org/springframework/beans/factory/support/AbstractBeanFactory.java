@@ -56,15 +56,7 @@ import org.springframework.beans.factory.CannotLoadBeanClassException;
 import org.springframework.beans.factory.FactoryBean;
 import org.springframework.beans.factory.NoSuchBeanDefinitionException;
 import org.springframework.beans.factory.SmartFactoryBean;
-import org.springframework.beans.factory.config.BeanDefinition;
-import org.springframework.beans.factory.config.BeanDefinitionHolder;
-import org.springframework.beans.factory.config.BeanExpressionContext;
-import org.springframework.beans.factory.config.BeanExpressionResolver;
-import org.springframework.beans.factory.config.BeanPostProcessor;
-import org.springframework.beans.factory.config.ConfigurableBeanFactory;
-import org.springframework.beans.factory.config.DestructionAwareBeanPostProcessor;
-import org.springframework.beans.factory.config.InstantiationAwareBeanPostProcessor;
-import org.springframework.beans.factory.config.Scope;
+import org.springframework.beans.factory.config.*;
 import org.springframework.core.AttributeAccessor;
 import org.springframework.core.DecoratingClassLoader;
 import org.springframework.core.NamedThreadLocal;
@@ -1236,14 +1228,18 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	 * and factory method type conversion.
 	 * @param registry the PropertyEditorRegistry to initialize
 	 */
-	protected void registerCustomEditors(PropertyEditorRegistry registry) {
+	protected void registerCustomEditors(PropertyEditorRegistry registry) { // registry:注册表
 		PropertyEditorRegistrySupport registrySupport =
 				(registry instanceof PropertyEditorRegistrySupport ? (PropertyEditorRegistrySupport) registry : null);
 		if (registrySupport != null) {
 			registrySupport.useConfigValueEditors();
 		}
+		/**
+		 * {@link org.springframework.context.support.AbstractApplicationContext#prepareBeanFactory(ConfigurableListableBeanFactory)} 添加了
+		 * @see org.springframework.beans.support.ResourceEditorRegistrar 作为 PropertyEditorRegistrar
+		 */
 		if (!this.propertyEditorRegistrars.isEmpty()) {
-			for (PropertyEditorRegistrar registrar : this.propertyEditorRegistrars) {
+			for (PropertyEditorRegistrar registrar : this.propertyEditorRegistrars) { // registrar:注册员
 				try {
 					registrar.registerCustomEditors(registry);
 				}

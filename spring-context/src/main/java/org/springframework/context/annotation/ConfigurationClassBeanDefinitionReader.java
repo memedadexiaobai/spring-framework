@@ -407,7 +407,7 @@ class ConfigurationClassBeanDefinitionReader {
 
 		public ConfigurationClassBeanDefinition(
 				ConfigurationClass configClass, MethodMetadata beanMethodMetadata, String derivedBeanName) {
-
+			super();
 			this.annotationMetadata = configClass.getMetadata();
 			this.factoryMethodMetadata = beanMethodMetadata;
 			this.derivedBeanName = derivedBeanName;

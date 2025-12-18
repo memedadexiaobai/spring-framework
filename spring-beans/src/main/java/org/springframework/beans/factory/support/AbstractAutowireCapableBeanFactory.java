@@ -134,7 +134,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	private boolean allowCircularReferences = true;
 
 	/**
-	 * Whether to resort to injecting a raw bean instance in case of circular reference,
+	 * Whether to resort(采取) to injecting a raw bean instance in case of circular reference,
 	 * even if the injected bean eventually got wrapped.
 	 */
 	private boolean allowRawInjectionDespiteWrapping = false;
@@ -502,6 +502,8 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 
 		try {
 			// Give BeanPostProcessors a chance to return a proxy instead of the target bean instance.
+			// 执行 InstantiationAwareBeanPostProcessor#postProcessBeforeInstantiation
+			// 可以通过 InstantiationAwareBeanPostProcessor 的实现类来替换实际的bean
 			Object bean = resolveBeforeInstantiation(beanName, mbdToUse);
 			if (bean != null) {
 				return bean;
@@ -565,7 +567,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		synchronized (mbd.postProcessingLock) {
 			if (!mbd.postProcessed) {
 				try {
-					// 执行 postProcessMergedBeanDefinition
+					// 执行 MergedBeanDefinitionPostProcessor#postProcessMergedBeanDefinition
 					applyMergedBeanDefinitionPostProcessors(mbd, beanType, beanName);
 				}
 				catch (Throwable ex) {
@@ -585,13 +587,19 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 				logger.trace("Eagerly caching bean '" + beanName +
 						"' to allow for resolving potential circular references");
 			}
+			// 可以通过SmartInstantiationAwareBeanPostProcessor#getEarlyBeanReference获取一个早期的索引
 			addSingletonFactory(beanName, () -> getEarlyBeanReference(beanName, mbd, bean));
 		}
 
 		// Initialize the bean instance.
 		Object exposedObject = bean;
 		try {
+			// 先执行 InstantiationAwareBeanPostProcessor#postProcessAfterInstantiation
+			// InstantiationAwareBeanPostProcessor#postProcessProperties
 			populateBean(beanName, mbd, instanceWrapper);
+			// 1.执行 BeanPostProcessor#postProcessBeforeInitialization
+			// 2.执行初始化方法
+			// 3.执行 BeanPostProcessor#postProcessAfterInitialization
 			exposedObject = initializeBean(beanName, exposedObject, mbd);
 		}
 		catch (Throwable ex) {
@@ -604,13 +612,36 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			}
 		}
 
+		/**
+		 * | 代码                                        | 含义                                                                                      |
+		 * | ----------------------------------------- | --------------------------------------------------------------------------------------- |
+		 * | `getSingleton(beanName, false)`           | **只查一级缓存**（`singletonObjects`），不执行 `ObjectFactory`；这里拿到的是**循环依赖过程中已经注入给其他 Bean 的早期引用**。 |
+		 * | `earlySingletonReference != null`         | 说明提前曝光确实被使用过（循环依赖发生）。                                                                   |
+		 * | `exposedObject == bean`                   | **后置处理器没有更换对象**（返回的仍是原生实例）。此时必须把缓存里可能已代理的引用暴露出去，否则注入的是代理，最终返回的是原生，出现**两份不一致**的单例。       |
+		 * | `exposedObject = earlySingletonReference` | **用缓存里的代理对象覆盖返回值**，保证整个容器里只有**一个一致性引用**。                                                |
+		 */
 		if (earlySingletonExposure) {
 			Object earlySingletonReference = getSingleton(beanName, false);
 			if (earlySingletonReference != null) {
+				// 防止注入的代理对象被后置处理器换掉，导致缓存里出现两份不一致的 Bean。
 				if (exposedObject == bean) {
-					exposedObject = earlySingletonReference;
+					exposedObject = earlySingletonReference; // 用缓存里可能已代理过的引用，保证单例唯一
 				}
+				/**
+				 * | 条件                                       | 含义                                                     |
+				 * | ----------------------------------------  | ------------------------------------------------------ |
+				 * | `exposedObject != bean`                   | **后置处理器创建了新的代理对象**（例如 AOP、事务、自定义 `BeanPostProcessor`）。 |
+				 * | `!this.allowRawInjectionDespiteWrapping`  | **默认 false** → 不允许“裸对象”注入。                             |
+				 * | `hasDependentBean(beanName)`              | 当前 Bean **已经因为循环依赖被注入到其他 Bean**。                       |
+				 */
 				else if (!this.allowRawInjectionDespiteWrapping && hasDependentBean(beanName)) {
+					/**
+					 * | 步骤                                                          | 目的                                                  |
+					 * | ----------------------------------------------------------- | --------------------------------------------------- |
+					 * | ① `getDependentBeans(beanName)`                             | 拿到**所有依赖当前 Bean** 的 Bean 名数组。                       |
+					 * | ② `removeSingletonIfCreatedForTypeCheckOnly(dependentBean)` | 过滤掉**仅因类型检查而提前创建的临时 Bean**（未被真正使用）。                 |
+					 * | ③ 若剩余 `actualDependentBeans` **非空**                         | 说明**有真实 Bean 已经持有了“原始对象”引用**，与最终代理对象不一致 → **抛出异常**。 |
+					 */
 					String[] dependentBeans = getDependentBeans(beanName);
 					Set<String> actualDependentBeans = new LinkedHashSet<>(dependentBeans.length);
 					for (String dependentBean : dependentBeans) {
@@ -618,6 +649,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 							actualDependentBeans.add(dependentBean);
 						}
 					}
+					// 只要提前曝光被用过，且最终换成了代理，Spring 就检查有没有别人拿到了‘裸对象’；有就立即抛异常，防止不一致引用流入容器。
 					if (!actualDependentBeans.isEmpty()) {
 						throw new BeanCurrentlyInCreationException(beanName,
 								"Bean with name '" + beanName + "' has been injected into other beans [" +
@@ -700,6 +732,8 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	 * (also signals that the returned {@code Class} will never be exposed to application code)
 	 * @return the type for the bean if determinable, or {@code null} otherwise
 	 * @see #createBean
+	 *
+	 * 先拿工厂类，再扫所有重载，把返回类型归约到最具体公共类型；若泛型则结合实参反推，归约失败就返回 null
 	 */
 	@Nullable
 	protected Class<?> getTypeForFactoryMethod(String beanName, RootBeanDefinition mbd, Class<?>... typesToMatch) {
@@ -736,16 +770,25 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			factoryClass = ClassUtils.getUserClass(factoryClass);
 
 			// If all factory methods have the same return type, return that type.
-			// Can't clearly figure out exact method due to type converting / autowiring!
+			// Can't clearly figure out(算出) exact(准确的) method due to type converting / autowiring!
 			int minNrOfArgs =
 					(mbd.hasConstructorArgumentValues() ? mbd.getConstructorArgumentValues().getArgumentCount() : 0);
 			Method[] candidates = this.factoryMethodCandidateCache.computeIfAbsent(factoryClass,
 					clazz -> ReflectionUtils.getUniqueDeclaredMethods(clazz, ReflectionUtils.USER_DECLARED_METHODS));
 
+			/**
+			 * | 步骤                | 目的                                                                                                                         |
+			 * | ----------------- | -------------------------------------------------------------------------------------------------------------------------- |
+			 * | ① 快速缓存            | `mbd.factoryMethodReturnType` 已解析过直接返回。                                                                                    |
+			 * | ② 确定工厂类           | 根据 `factory-bean` 或 `factory-class` 拿到 `Class<?>`。                                                                         |
+			 * | ③ 扫描所有**静态/实例**方法 | 只保留 **参数个数 ≥ 最小实参个数** 且 **被标记为工厂方法** 的候选。                                                                                  |
+			 * | ④ 分两支处理           | **无泛型** → 直接用 `candidate.getReturnType()`；**有泛型** → 把实参也传进去，让 `AutowireUtils.resolveReturnTypeForFactoryMethod` 推导出真实返回类型。 |
+			 * | ⑤ 类型归约            | 用 `ClassUtils.determineCommonAncestor` 把所有候选返回类型**向上找公共父类/接口**；若找不到公共类型 → 歧义，返回 `null`。                                    |
+			 */
 			for (Method candidate : candidates) {
 				if (Modifier.isStatic(candidate.getModifiers()) == isStatic && mbd.isFactoryMethod(candidate) &&
 						candidate.getParameterCount() >= minNrOfArgs) {
-					// Declared type variables to inspect?
+					// Declared type variables to inspect(检查)? 泛型方法
 					if (candidate.getTypeParameters().length > 0) {
 						try {
 							// Fully resolve parameter names and argument values.
@@ -1178,6 +1221,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			return obtainFromSupplier(instanceSupplier, beanName);
 		}
 
+		// bean method创建
 		if (mbd.getFactoryMethodName() != null) {
 			return instantiateUsingFactoryMethod(beanName, mbd, args);
 		}
@@ -1203,6 +1247,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		}
 
 		// Candidate constructors for autowiring?
+		// SmartInstantiationAwareBeanPostProcessor#determineCandidateConstructors 来推断
 		Constructor<?>[] ctors = determineConstructorsFromBeanPostProcessors(beanClass, beanName);
 		if (ctors != null || mbd.getResolvedAutowireMode() == AUTOWIRE_CONSTRUCTOR ||
 				mbd.hasConstructorArgumentValues() || !ObjectUtils.isEmpty(args)) {
@@ -1363,7 +1408,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	}
 
 	/**
-	 * Populate the bean instance in the given BeanWrapper with the property values
+	 * Populate(填充) the bean instance in the given BeanWrapper with the property values
 	 * from the bean definition.
 	 * @param beanName the name of the bean
 	 * @param mbd the bean definition for the bean
@@ -1426,8 +1471,10 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 					PropertyValues pvsToUse = ibp.postProcessProperties(pvs, bw.getWrappedInstance(), beanName);
 					if (pvsToUse == null) {
 						if (filteredPds == null) {
+							// 过滤出需要做依赖检查的属性
 							filteredPds = filterPropertyDescriptorsForDependencyCheck(bw, mbd.allowCaching);
 						}
+						//做一个必须进行注入的检查
 						pvsToUse = ibp.postProcessPropertyValues(pvs, filteredPds, bw.getWrappedInstance(), beanName);
 						if (pvsToUse == null) {
 							return;
@@ -1601,6 +1648,12 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	 * @return whether the bean property is excluded
 	 * @see #ignoreDependencyType(Class)
 	 * @see #ignoreDependencyInterface(Class)
+	 *
+	 * | 条件                                                                          | 含义                                                                                              |
+	 * | --------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+	 * | `AutowireUtils.isExcludedFromDependencyCheck(pd)`                           | **Java 原生规则**：`Class`、`String`、`Boolean` 等简单类型 或 **read-only** 属性（无 setter）。                    |
+	 * | `this.ignoredDependencyTypes.contains(pd.getPropertyType())`                | **容器级白名单**：开发者可通过 `ignoreDependencyType(Class<?>)` 把某些类型整体排除（如 `Environment`、`ResourceLoader`）。 |
+	 * | `AutowireUtils.isSetterDefinedInInterface(pd, ignoredDependencyInterfaces)` | **接口级白名单**：若 setter 方法来自指定接口（如 `BeanNameAware`），也跳过检查；这些接口属性由容器回调填充，无需常规注入。                     |
 	 */
 	protected boolean isExcludedFromDependencyCheck(PropertyDescriptor pd) {
 		return (AutowireUtils.isExcludedFromDependencyCheck(pd) ||
@@ -1626,7 +1679,8 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		for (PropertyDescriptor pd : pds) {
 			if (pd.getWriteMethod() != null && (pvs == null || !pvs.contains(pd.getName()))) {
 				boolean isSimple = BeanUtils.isSimpleProperty(pd.getPropertyType());
-				boolean unsatisfied = (dependencyCheck == AbstractBeanDefinition.DEPENDENCY_CHECK_ALL) ||
+				boolean unsatisfied =
+						(dependencyCheck == AbstractBeanDefinition.DEPENDENCY_CHECK_ALL) ||
 						(isSimple && dependencyCheck == AbstractBeanDefinition.DEPENDENCY_CHECK_SIMPLE) ||
 						(!isSimple && dependencyCheck == AbstractBeanDefinition.DEPENDENCY_CHECK_OBJECTS);
 				if (unsatisfied) {
@@ -1715,9 +1769,10 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 					}
 					deepCopy.add(pv);
 				}
-				else if (convertible && originalValue instanceof TypedStringValue &&
-						!((TypedStringValue) originalValue).isDynamic() &&
-						!(convertedValue instanceof Collection || ObjectUtils.isArray(convertedValue))) {
+				else if (convertible
+						&& originalValue instanceof TypedStringValue
+						&& !((TypedStringValue) originalValue).isDynamic()
+						&& !(convertedValue instanceof Collection || ObjectUtils.isArray(convertedValue))) {
 					pv.setConvertedValue(convertedValue);
 					deepCopy.add(pv);
 				}

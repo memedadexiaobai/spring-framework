@@ -52,6 +52,7 @@ import org.springframework.beans.factory.config.AutowireCapableBeanFactory;
 import org.springframework.beans.factory.config.ConstructorArgumentValues;
 import org.springframework.beans.factory.config.ConstructorArgumentValues.ValueHolder;
 import org.springframework.beans.factory.config.DependencyDescriptor;
+import org.springframework.context.annotation.BeanMethod;
 import org.springframework.core.CollectionFactory;
 import org.springframework.core.MethodParameter;
 import org.springframework.core.NamedThreadLocal;
@@ -400,16 +401,24 @@ class ConstructorResolver {
 		Class<?> factoryClass;
 		boolean isStatic;
 
+		/**
+		 * {@link org.springframework.context.annotation.ConfigurationClassBeanDefinitionReader#loadBeanDefinitionsForBeanMethod(org.springframework.context.annotation.BeanMethod)}
+		 */
 		String factoryBeanName = mbd.getFactoryBeanName();
 		if (factoryBeanName != null) {
+			// factory-bean 指向自己是非法的，无法完成创建，直接抛异常。
 			if (factoryBeanName.equals(beanName)) {
 				throw new BeanDefinitionStoreException(mbd.getResourceDescription(), beanName,
 						"factory-bean reference points back to the same bean definition");
 			}
+			// 触发 getBean，确保 factory-bean 已实例化
 			factoryBean = this.beanFactory.getBean(factoryBeanName);
+			// 如果当前 bean 是 单例，且 已经提前曝光（如循环依赖时通过 ObjectFactory 暴露），则不能再走 factory-bean 流程创建，直接抛异常
 			if (mbd.isSingleton() && this.beanFactory.containsSingleton(beanName)) {
+				//  Spring 内部异常，表示“单例已存在，不能重复创建”
 				throw new ImplicitlyAppearedSingletonException();
 			}
+			// 记录 factoryBeanName → beanName 的依赖关系，用于后续 销毁顺序（先销毁 bean，再销毁 factory-bean）
 			this.beanFactory.registerDependentBean(factoryBeanName, beanName);
 			factoryClass = factoryBean.getClass();
 			isStatic = false;
@@ -465,8 +474,10 @@ class ConstructorResolver {
 			}
 			if (candidates == null) {
 				candidates = new ArrayList<>();
+				//获取所有方法 包括继承的父类和实现的接口
 				Method[] rawCandidates = getCandidateMethods(factoryClass, mbd);
 				for (Method candidate : rawCandidates) {
+					// 方法名和 factoryBeanName 一样的方法
 					if (Modifier.isStatic(candidate.getModifiers()) == isStatic && mbd.isFactoryMethod(candidate)) {
 						candidates.add(candidate);
 					}
@@ -488,13 +499,14 @@ class ConstructorResolver {
 			}
 
 			if (candidates.size() > 1) {  // explicitly skip immutable singletonList
+				//先通过是不是public方法排序，在通过参数个数排序，参数个数多的优先来
 				candidates.sort(AutowireUtils.EXECUTABLE_COMPARATOR);
 			}
 
 			ConstructorArgumentValues resolvedValues = null;
 			boolean autowiring = (mbd.getResolvedAutowireMode() == AutowireCapableBeanFactory.AUTOWIRE_CONSTRUCTOR);
 			int minTypeDiffWeight = Integer.MAX_VALUE;
-			Set<Method> ambiguousFactoryMethods = null;
+			Set<Method> ambiguousFactoryMethods = null; //  ambiguous:模糊的
 
 			int minNrOfArgs;
 			if (explicitArgs != null) {
@@ -518,12 +530,29 @@ class ConstructorResolver {
 			for (Method candidate : candidates) {
 				int parameterCount = candidate.getParameterCount();
 
+				/**
+				 * 为了 先快速剪掉“绝对不可能匹配”的候选，减少后续昂贵的类型推导与权重计算。
+				 * Java 语法层面就 不允许“实参比形参少”（除非可变参数，但那是另一条分支）。
+				 * 因此 任何参数个数不足的候选方法/构造器 在这一步就可以 安全地跳过，无需再进入复杂的类型匹配、权重打分、自动注入等逻辑，节省 CPU。
+				 *
+				 * 所有候选方法
+				 *         ↓
+				 * parameterCount < minNrOfArgs ?  →  直接 continue（剪掉）
+				 *         ↓
+				 * parameterCount >= minNrOfArgs     保留，继续后续
+				 *         ↓
+				 * 类型匹配、自动注入、权重打分、最优化选择
+ 				 */
 				if (parameterCount >= minNrOfArgs) {
 					ArgumentsHolder argsHolder;
 
 					Class<?>[] paramTypes = candidate.getParameterTypes();
 					if (explicitArgs != null) {
 						// Explicit arguments given -> arguments length must match exactly.
+						//这是显式参数分支（explicitArgs != null）的硬匹配逻辑：
+						//调用者已经明确给出了实参列表（长度固定、类型固定）。
+						//Java 语法规定：普通调用实参个数必须精确等于形参个数（可变参数除外，但这里先走精确分支）。
+						//因此只要长度不一致，就绝对不可能匹配，无需再浪费 CPU 去做类型对比或自动注入，直接 continue 剪掉即可。
 						if (paramTypes.length != explicitArgs.length) {
 							continue;
 						}
@@ -661,7 +690,7 @@ class ConstructorResolver {
 
 	/**
 	 * Resolve the constructor arguments for this bean into the resolvedValues object.
-	 * This may involve looking up other beans.
+	 * This may involve(涉及) looking up other beans.
 	 * <p>This method is also used for handling invocations of static factory methods.
 	 */
 	private int resolveConstructorArguments(String beanName, RootBeanDefinition mbd, BeanWrapper bw,
@@ -746,7 +775,7 @@ class ConstructorResolver {
 			}
 			if (valueHolder != null) {
 				// We found a potential match - let's give it a try.
-				// Do not consider the same value definition multiple times!
+				// Do not consider the same value definition multiple(多个) times!
 				usedValueHolders.add(valueHolder);
 				Object originalValue = valueHolder.getValue();
 				Object convertedValue;
@@ -778,7 +807,7 @@ class ConstructorResolver {
 			}
 			else {
 				MethodParameter methodParam = MethodParameter.forExecutable(executable, paramIndex);
-				// No explicit match found: we're either supposed to autowire or
+				// No explicit(明确) match found: we're either supposed to autowire or
 				// have to fail creating an argument array for the given constructor.
 				if (!autowiring) {
 					throw new UnsatisfiedDependencyException(
@@ -946,8 +975,8 @@ class ConstructorResolver {
 
 		public int getTypeDifferenceWeight(Class<?>[] paramTypes) {
 			// If valid arguments found, determine type difference weight.
-			// Try type difference weight on both the converted arguments and
-			// the raw arguments. If the raw weight is better, use it.
+			// Try type difference weight on both the converted arguments and the raw arguments.
+			// If the raw weight is better, use it.
 			// Decrease raw weight by 1024 to prefer it over equal converted weight.
 			int typeDiffWeight = MethodInvoker.getTypeDifferenceWeight(paramTypes, this.arguments);
 			int rawTypeDiffWeight = MethodInvoker.getTypeDifferenceWeight(paramTypes, this.rawArguments) - 1024;

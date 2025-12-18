@@ -396,6 +396,24 @@ class BeanDefinitionValueResolver {
 	 * a counter is added, increasing the counter until the name is unique.
 	 * @param innerBeanName the original name for the inner bean
 	 * @return the adapted name for the inner bean
+	 *
+	 * | 步骤    | 说明                                             |
+	 * | ----- | ---------------------------------------------- |
+	 * | **①** | 先尝试原名字 `innerBeanName`（如 `Outer#inner`）。       |
+	 * | **②** | 若容器已存在同名 Bean → 在尾部追加 `#1`、`#2`…直到**找不到冲突**为止。 |
+	 * | **③** | 返回最终可用的名字。                                     |
+	 *
+	 * 背景：内嵌 Bean 没有显式 id
+	 * <bean id="outer" class="com.Outer">
+	 *     <property name="inner">
+	 *         <bean class="com.Inner"/>   <!-- 没写 id -->
+	 *     </property>
+	 * </bean>
+	 * XML 解析器会先给内嵌 Bean 一个临时名：
+	 *  Outer#inner（Outer + # + 属性名）
+	 * 但如果多个 <property> 都叫 inner，或者用户自己也定义了同名 Bean，就会冲突。
+	 *
+	 * “内嵌 Bean 没写 id 就自动生成，发现重名就加 #1 #2… 直到唯一，保证容器里不会出现同名 BeanDefinition。”
 	 */
 	private String adaptInnerBeanName(String innerBeanName) {
 		String actualInnerBeanName = innerBeanName;

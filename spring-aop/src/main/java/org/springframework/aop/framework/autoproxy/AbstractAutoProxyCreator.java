@@ -53,12 +53,13 @@ import org.springframework.util.StringUtils;
 
 /**
  * {@link org.springframework.beans.factory.config.BeanPostProcessor} implementation
- * that wraps each eligible bean with an AOP proxy, delegating to specified interceptors
- * before invoking the bean itself.
+ * that wraps each eligible(符合条件的) bean with an AOP proxy,
+ * delegating(委托，授权) to specified interceptors before invoking the bean itself.
  *
- * <p>This class distinguishes between "common" interceptors: shared for all proxies it
- * creates, and "specific" interceptors: unique per bean instance. There need not be any
- * common interceptors. If there are, they are set using the interceptorNames property.
+ * <p>This class distinguishes(区分) between "common" interceptors:
+ * 		shared for all proxies it creates,
+ * 		and "specific" interceptors: unique per bean instance.
+ * There need not be any common interceptors. If there are, they are set using the interceptorNames property.
  * As with {@link org.springframework.aop.framework.ProxyFactoryBean}, interceptors names
  * in the current factory are used rather than bean references to allow correct handling
  * of prototype advisors and interceptors: for example, to support stateful mixins.
@@ -336,6 +337,7 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 		if (StringUtils.hasLength(beanName) && this.targetSourcedBeans.contains(beanName)) {
 			return bean;
 		}
+		// 已经处理过的，直接返回
 		if (Boolean.FALSE.equals(this.advisedBeans.get(cacheKey))) {
 			return bean;
 		}
@@ -451,7 +453,8 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 		proxyFactory.copyFrom(this);
 
 		if (proxyFactory.isProxyTargetClass()) {
-			// Explicit handling of JDK proxy targets (for introduction advice scenarios)
+			// Explicit(明确) handling of JDK proxy targets (for introduction advice scenarios)
+			// 用来快速判断一个 Class 对象是否由 java.lang.reflect.Proxy 动态生成的接口代理类（即“JDK 动态代理”）。
 			if (Proxy.isProxyClass(beanClass)) {
 				// Must allow for introductions; can't just set interfaces to the proxy's interfaces only.
 				for (Class<?> ifc : beanClass.getInterfaces()) {

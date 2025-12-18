@@ -39,7 +39,7 @@ public interface PropertyEditorRegistry {
 	/**
 	 * Register the given custom property editor for all properties of the given type.
 	 * @param requiredType the type of the property
-	 * @param propertyEditor the editor to register
+	 * @param propertyEditor the editor to register 这个是jdk的标准
 	 */
 	void registerCustomEditor(Class<?> requiredType, PropertyEditor propertyEditor);
 

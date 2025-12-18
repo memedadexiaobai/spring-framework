@@ -52,7 +52,7 @@ public abstract class AopConfigUtils {
 			"org.springframework.aop.config.internalAutoProxyCreator";
 
 	/**
-	 * Stores the auto proxy creator classes in escalation order.
+	 * Stores the auto proxy creator classes in escalation(升级，逐步上升) order.
 	 */
 	private static final List<Class<?>> APC_PRIORITY_LIST = new ArrayList<>(3);
 
@@ -123,9 +123,10 @@ public abstract class AopConfigUtils {
 		if (registry.containsBeanDefinition(AUTO_PROXY_CREATOR_BEAN_NAME)) {
 			BeanDefinition apcDefinition = registry.getBeanDefinition(AUTO_PROXY_CREATOR_BEAN_NAME);
 			if (!cls.getName().equals(apcDefinition.getBeanClassName())) {
+				//这里查出的索引就相当于优先级，索引越大优先级越高
 				int currentPriority = findPriorityForClass(apcDefinition.getBeanClassName());
 				int requiredPriority = findPriorityForClass(cls);
-				if (currentPriority < requiredPriority) {
+				if (currentPriority < requiredPriority) { //说明requiredPriority优先级更高
 					apcDefinition.setBeanClassName(cls.getName());
 				}
 			}

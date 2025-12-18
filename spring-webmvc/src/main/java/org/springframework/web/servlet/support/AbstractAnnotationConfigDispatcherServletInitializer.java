@@ -40,6 +40,8 @@ import org.springframework.web.context.support.AnnotationConfigWebApplicationCon
  * @author Arjen Poutsma
  * @author Chris Beams
  * @since 3.2
+ *
+ * 这个还是得自己去实现一下了
  */
 public abstract class AbstractAnnotationConfigDispatcherServletInitializer
 		extends AbstractDispatcherServletInitializer {

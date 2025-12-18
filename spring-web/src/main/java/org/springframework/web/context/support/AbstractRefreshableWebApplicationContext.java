@@ -99,6 +99,7 @@ public abstract class AbstractRefreshableWebApplicationContext extends AbstractR
 
 
 	public AbstractRefreshableWebApplicationContext() {
+		super();
 		setDisplayName("Root WebApplicationContext");
 	}
 

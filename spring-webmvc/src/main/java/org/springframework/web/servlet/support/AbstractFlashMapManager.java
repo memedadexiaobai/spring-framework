@@ -161,6 +161,29 @@ public abstract class AbstractFlashMapManager implements FlashMapManager {
 	/**
 	 * Whether the given FlashMap matches the current request.
 	 * Uses the expected request path and query parameters saved in the FlashMap.
+	 *
+	 * 只有“路径 + 参数”都完全匹配的 FlashMap，才允许被当前请求取出来使用；
+	 * 否则继续留在 Session 里，等待下一次更匹配的 GET 请求。
+	 *
+	 * | 步骤   | 比对内容                                                                 | 说明                 |
+	 * | ---- | -------------------------------------------------------------------- | ------------------ |
+	 * | ① 路径 | `requestUri` vs `flashMap.getTargetRequestPath()`                    | 允许 **多一个结尾斜杠** 的容错 |
+	 * | ② 参数 | `flashMap` 里 **每个预期参数** 必须 **全部出现在当前请求**中，且 **值集合包含预期值**（可有多余值，不能缺少） |                    |
+	 *
+	 * | FlashMap 设定                            | 当前 GET 请求                         | 结果         |
+	 * | -------------------------------------- | --------------------------------- | ---------- |
+	 * | path=`/order/1` params=`{}`            | `GET /order/1`                    | ✅ 通过       |
+	 * | path=`/order/1`                        | `GET /order/1/`                   | ✅ 通过（容错斜杠） |
+	 * | path=`/order/1`                        | `GET /order/2`                    | ❌ 路径不同     |
+	 * | path=`/order/1` params=`{token=[abc]}` | `GET /order/1?token=xyz`          | ❌ 值不匹配     |
+	 * | params=`{token=[abc]}`                 | `GET /order/1?token=abc&extra=ok` | ✅ 子集通过     |
+	 *
+	 * “只有路径相同（允许多一斜杠）且查询参数包含 FlashMap 预期的全部键值对，这把‘一次性钥匙’才允许当前请求打开 FlashMap，否则继续等待更匹配的请求。”
+	 *
+	 * 作用
+	 *	 并发安全：多个浏览器窗口同时 PRG，各自 FlashMap 不会串扰。
+	 * 	 精准投递：Redirect 时带上的路径参数/查询串必须与目标完全一致才生效。
+	 * 	 容错斜杠：/order/1 vs /order/1/ 都可接受，提升兼容性。
 	 */
 	protected boolean isFlashMapForRequest(FlashMap flashMap, HttpServletRequest request) {
 		String expectedPath = flashMap.getTargetRequestPath();

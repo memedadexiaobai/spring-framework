@@ -42,6 +42,8 @@ public interface PropertyEditorRegistrar {
 	 * method (since {@code PropertyEditors} are not threadsafe).
 	 * @param registry the {@code PropertyEditorRegistry} to register the
 	 * custom {@code PropertyEditors} with
+	 *
+	 * PropertyEditorRegistry 这个是注册表
 	 */
 	void registerCustomEditors(PropertyEditorRegistry registry);
 

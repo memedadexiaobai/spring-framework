@@ -30,6 +30,10 @@ import org.springframework.lang.Nullable;
  * @author Stephane Nicoll
  * @since 2.0
  * @see BeanWrapper
+ * PropertyAccessor 这个负责属性的访问
+ * PropertyEditorRegistry 这个负责属性的编辑，属性编辑器注册
+ * TypeConverter 这个负责将读取出来的数据转成目标类型实例
+ * ConfigurablePropertyAccessor 添加了 ConversionService
  */
 public interface ConfigurablePropertyAccessor extends PropertyAccessor, PropertyEditorRegistry, TypeConverter {
 

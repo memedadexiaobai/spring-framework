@@ -16,18 +16,18 @@
 
 ### 2  核心 API 一张图（够用版）
 
-| 类别 | 常用方法 | 说明 |
-|---|---|---|
-| **名称信息** | `getName()` / `getSimpleName()` / `getTypeName()` | 全限定名、简称、可读名 |
+| 类别 | 常用方法                                                                                           | 说明 |
+|---|------------------------------------------------------------------------------------------------|---|
+| **名称信息** | `getName()` / `getSimpleName()` / `getTypeName()`                                              | 全限定名、简称、可读名 |
 | **类型判断** | `isInterface()` / `isArray()` / `isEnum()` / `isPrimitive()` / `isRecord()` / `isAnnotation()` | 快速分型 |
-| **继承关系** | `getSuperclass()` / `getInterfaces()` / `getGenericInterfaces()` | 父类、接口（含泛型） |
-| **加载器** | `getClassLoader()` | 拿到所属 `ClassLoader` |
-| **反射创建** | `newInstance()`（已弃用）→ `getDeclaredConstructor().newInstance()` | 无参构造快速创建 |
-| **成员访问** | `getDeclaredFields()` / `getDeclaredMethods()` / `getDeclaredConstructors()` | **本类声明**（含 private） |
-| **公开成员** | `getFields()` / `getMethods()` / `getConstructors()` | **public + 继承链** |
-| **注解** | `getAnnotations()` / `getDeclaredAnnotations()` / `getAnnotation(Class<A>)` | 读取注解 |
-| **数组** | `getComponentType()` / `isArray()` | 数组元素类型 |
-| **类型比较** | `isAssignableFrom(Class<?> cls)` / `isInstance(Object obj)` | 父 ← 子 判断 |
+| **继承关系** | `getSuperclass()` / `getInterfaces()` / `getGenericInterfaces()`                               | 父类、接口（含泛型） |
+| **加载器** | `getClassLoader()`                                                                             | 拿到所属 `ClassLoader` |
+| **反射创建** | `newInstance()`（已弃用）→ `getDeclaredConstructor().newInstance()`                                 | 无参构造快速创建 |
+| **成员访问** | `getDeclaredFields()` / `getDeclaredMethods()` / `getDeclaredConstructors()`                   | **本类声明**（含 private） |
+| **公开成员** | `getFields()` / `getMethods()` / `getConstructors()`                                           | **public + 继承链** |
+| **注解** | `getAnnotations()` / `getDeclaredAnnotations()` / `getAnnotation(Class<A>)`                    | 读取注解 |
+| **数组** | `getComponencomtType()` / `isArray()`                                                          | 数组元素类型 |
+| **类型比较** | `isAssignableFrom(Class<?> cls)` / `isInstance(Object obj)`                                    | 父 ← 子 判断 |
 
 ---
 

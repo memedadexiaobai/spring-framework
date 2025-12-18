@@ -280,6 +280,14 @@ public class ConstructorArgumentValues {
 	public ValueHolder getGenericArgumentValue(@Nullable Class<?> requiredType, @Nullable String requiredName,
 			@Nullable Set<ValueHolder> usedValueHolders) {
 
+		/**
+		 * | 条件                                                        | 作用                                                          | 不过关说明    |
+		 * | ---------------------------------------------              | ------------------------------------------------             | --------  |
+		 * | ① `usedValueHolders.contains(valueHolder)`                | **防止重复注入**（循环引用或多次使用）                            | 已用过，跳过   |
+		 * | ② `requiredName != null 且 不匹配`                         | **按名精准匹配**（如 `<constructor-arg name="userDao">`）       | 名字对不上，跳过 |
+		 * | ③ `requiredType != null 且 配置类型不匹配`                  | **按类型精准匹配**（如 `type="com.xxx.UserDao"`）               | 类型对不上，跳过 |
+		 * | ④ `requiredType != null 且 配置没给类型/名字 且 值实例不兼容` | **兜底类型安全检查**（防止把字符串填到 Date）                      | 值无法赋值，跳过 |
+		 */
 		for (ValueHolder valueHolder : this.genericArgumentValues) {
 			if (usedValueHolders != null && usedValueHolders.contains(valueHolder)) {
 				continue;

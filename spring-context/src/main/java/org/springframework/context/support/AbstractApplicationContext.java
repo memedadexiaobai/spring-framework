@@ -227,6 +227,7 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 	 * Create a new AbstractApplicationContext with no parent.
 	 */
 	public AbstractApplicationContext() {
+		super();
 		this.resourcePatternResolver = getResourcePatternResolver();
 	}
 
@@ -559,7 +560,7 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 				// Invoke factory processors registered as beans in the context.
 				invokeBeanFactoryPostProcessors(beanFactory);
 
-				// Register bean processors that intercept bean creation.
+				// Register bean processors that intercept bean creation. 这里就注册了下
 				registerBeanPostProcessors(beanFactory);
 
 				// Initialize message source for this context.

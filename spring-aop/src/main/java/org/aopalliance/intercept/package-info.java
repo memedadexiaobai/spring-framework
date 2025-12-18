@@ -1,4 +1,4 @@
 /**
- * The AOP Alliance reflective interception abstraction.
+ * The AOP Alliance(联盟) reflective interception abstraction.
  */
 package org.aopalliance.intercept;

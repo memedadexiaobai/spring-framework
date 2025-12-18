@@ -931,6 +931,10 @@ public class DispatcherServlet extends FrameworkServlet {
 		request.setAttribute(THEME_SOURCE_ATTRIBUTE, getThemeSource());
 
 		if (this.flashMapManager != null) {
+			/**
+			 * FlashMap = “重定向专用的一次性 Session”：
+			 * POST 后写进去，GET 后自动读并删除，解决 PRG 模式数据传递，无需 URL 暴露，无需手动清理。
+			 */
 			FlashMap inputFlashMap = this.flashMapManager.retrieveAndUpdate(request, response);
 			if (inputFlashMap != null) {
 				request.setAttribute(INPUT_FLASH_MAP_ATTRIBUTE, Collections.unmodifiableMap(inputFlashMap));

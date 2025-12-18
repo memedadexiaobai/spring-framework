@@ -314,9 +314,21 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 					Constructor<?> primaryConstructor = BeanUtils.findPrimaryConstructor(beanClass);
 					int nonSyntheticConstructors = 0;
 					for (Constructor<?> candidate : rawCandidates) {
+						/**
+						 * 返回 true → 构造器是编译器合成的，开发者代码里看不见。
+						 * 返回 false → 构造器是源码里显式声明的。
+						 *
+						 * | 场景               | 示例                         | isSynthetic()                           |
+						 * | -----------       | -----------------------      | --------------------------------------- |
+						 * | **匿名内部类**     | `new Runnable(){ ... }`      | 匿名类的构造器 = true                          |
+						 * | **局部内部类**     | `class Local{}` 在方法内      | 构造器 = true                              |
+						 * | **枚举**          | `enum E{ A }`               | 生成 `private E(String,int)` 合成构造器 = true |
+						 * | **嵌套类默认构造** | 无手写构造器                  | 默认无参构造器 = false（只要源码里能写出来就不算合成）         |
+						 */
 						if (!candidate.isSynthetic()) {
 							nonSyntheticConstructors++;
 						}
+						// 找到 primaryConstructor 也就不用执行了
 						else if (primaryConstructor != null) {
 							continue;
 						}
@@ -451,6 +463,7 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 					if (metadata != null) {
 						metadata.clear(pvs);
 					}
+					//构建属性和方法的注入点
 					metadata = buildAutowiringMetadata(clazz);
 					this.injectionMetadataCache.put(cacheKey, metadata);
 				}

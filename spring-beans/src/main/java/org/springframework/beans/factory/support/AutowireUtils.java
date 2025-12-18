@@ -193,6 +193,7 @@ abstract class AutowireUtils {
 			}
 		}
 
+		// 这里说明返回的是个泛型 需要推断下真实的类型是什么
 		if (locallyDeclaredTypeVariableMatchesReturnType) {
 			for (int i = 0; i < methodParameterTypes.length; i++) {
 				Type methodParameterType = methodParameterTypes[i];

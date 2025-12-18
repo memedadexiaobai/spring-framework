@@ -29,7 +29,7 @@ import org.springframework.util.Assert;
 
 /**
  * {@link AspectJAwareAdvisorAutoProxyCreator} subclass that processes all AspectJ
- * annotation aspects in the current application context, as well as Spring Advisors.
+ * annotation aspects in the current application context, as well as(以及) Spring Advisors.
  *
  * <p>Any AspectJ annotated classes will automatically be recognized, and their
  * advice applied if Spring AOP's proxy-based model is capable of applying it.

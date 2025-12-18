@@ -79,6 +79,7 @@ public abstract class AbstractRefreshableApplicationContext extends AbstractAppl
 	 * Create a new AbstractRefreshableApplicationContext with no parent.
 	 */
 	public AbstractRefreshableApplicationContext() {
+		super();
 	}
 
 	/**

@@ -88,14 +88,13 @@ final class GenericTypeAwarePropertyDescriptor extends PropertyDescriptor {
 
 		if (this.writeMethod != null) {
 			if (this.readMethod == null) {
-				// Write method not matched against read method: potentially ambiguous through
-				// several overloaded variants, in which case an arbitrary winner has been chosen
-				// by the JDK's JavaBeans Introspector...
+				// Write method not matched against read method: potentially ambiguous(模糊的) through several overloaded variants(变体),
+				// in which case an arbitrary(任意的) winner has been chosen by the JDK's JavaBeans Introspector...
 				Set<Method> ambiguousCandidates = new HashSet<>();
 				for (Method method : beanClass.getMethods()) {
-					if (method.getName().equals(writeMethodToUse.getName()) &&
-							!method.equals(writeMethodToUse) && !method.isBridge() &&
-							method.getParameterCount() == writeMethodToUse.getParameterCount()) {
+					if (method.getName().equals(writeMethodToUse.getName())
+							&& !method.equals(writeMethodToUse) && !method.isBridge()
+							&& method.getParameterCount() == writeMethodToUse.getParameterCount()) {
 						ambiguousCandidates.add(method);
 					}
 				}

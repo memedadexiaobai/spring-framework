@@ -36,7 +36,7 @@ import org.springframework.util.ClassUtils;
 /**
  * {@link org.springframework.aop.framework.autoproxy.AbstractAdvisorAutoProxyCreator}
  * subclass that exposes AspectJ's invocation context and understands AspectJ's rules
- * for advice precedence when multiple pieces of advice come from the same aspect.
+ * for advice precedence(优先级) when multiple pieces of advice come from the same aspect.
  *
  * @author Adrian Colyer
  * @author Juergen Hoeller

@@ -49,6 +49,7 @@ public abstract class AbstractRefreshableConfigApplicationContext extends Abstra
 	 * Create a new AbstractRefreshableConfigApplicationContext with no parent.
 	 */
 	public AbstractRefreshableConfigApplicationContext() {
+		super();
 	}
 
 	/**

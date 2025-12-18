@@ -111,7 +111,7 @@ final class SerializableTypeWrapper {
 		}
 		if (GraalDetector.inImageCode() || !Serializable.class.isAssignableFrom(Class.class)) {
 			// Let's skip any wrapping attempts if types are generally not serializable in
-			// the current runtime environment (even java.lang.Class itself, e.g. on Graal)
+			// the current runtime environment (even java.lang.Class itself, e.g. on Greal)
 			return providedType;
 		}
 

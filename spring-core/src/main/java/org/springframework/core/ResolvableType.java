@@ -43,7 +43,7 @@ import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
 /**
- * Encapsulates a Java {@link java.lang.reflect.Type}, providing access to
+ * Encapsulates(压缩，概括) a Java {@link java.lang.reflect.Type}, providing access to
  * {@link #getSuperType() supertypes}, {@link #getInterfaces() interfaces}, and
  * {@link #getGeneric(int...) generic parameters} along with the ability to ultimately
  * {@link #resolve() resolve} to a {@link java.lang.Class}.
@@ -213,6 +213,9 @@ public class ResolvableType implements Serializable {
 		}
 		Type rawType = this.type;
 		if (rawType instanceof ParameterizedType) {
+			// getRawType() 只出现在 ParameterizedType 接口里（Java 反射），它的作用是：
+			// 把“带泛型实参”的类型擦成“裸类”——也就是返回 原始类型（raw type）的 Class 对象。
+			// “把 List<String> 扒光成 List。 getActualTypeArguments(); // 返回 [String.class]”
 			rawType = ((ParameterizedType) rawType).getRawType();
 		}
 		return (rawType instanceof Class ? (Class<?>) rawType : null);
@@ -395,10 +398,24 @@ public class ResolvableType implements Serializable {
 			return this.componentType;
 		}
 		if (this.type instanceof Class) {
+			// Class.getComponentType() 只针对“数组类型”才有意义；
+			// 非数组类调用它直接返回 null。
+			// 如果当前 Class 对象是数组，它返回“去掉最外层 [] 后剩下的元素类型”——也就是数组组件类型。
+			// int[].class.getComponentType();           // int.class
+			// String[][].class.getComponentType();      // String[].class  （还是数组）
+			// String.class.getComponentType();          // null
+			// int.class.getComponentType();             // null
 			Class<?> componentType = ((Class<?>) this.type).getComponentType();
 			return forType(componentType, this.variableResolver);
 		}
 		if (this.type instanceof GenericArrayType) {
+			// getGenericComponentType() 是 Java 反射中针对“泛型数组” 的专用 API，它返回的是：
+			// 数组的“泛型”组件类型——即带泛型信息的 java.lang.reflect.Type，而 不是裸 Class
+			// “把 List<String>[] 里的 List<String> 抠出来。”
+			// | 方法                          | 所属接口/类             | 返回类型       | 适用场景             |
+			// | --------------------------- | ------------------ | ---------- | ---------------- |
+			// | `getComponentType()`        | `Class`            | `Class<?>` | 任何数组类，剥一层 `[]`   |
+			// | `getGenericComponentType()` | `GenericArrayType` | `Type`     | **仅泛型数组**，保留泛型实参 |
 			return forType(((GenericArrayType) this.type).getGenericComponentType(), this.variableResolver);
 		}
 		return resolveType().getComponentType();
@@ -468,6 +485,9 @@ public class ResolvableType implements Serializable {
 			return NONE;
 		}
 		try {
+			// getGenericSuperclass() 是 java.lang.Class 的方法，用来获取当前类“直接继承”的父类的泛型签名（即带 <> 的版本）。
+			//如果父类不是泛型，或者当前类是 Object、接口、数组、基本类型，就退回为普通 Class 对象，甚至返回 null。
+			// “把 class MyList extends ArrayList<String> 里的 ArrayList<String> 原样抠出来。”
 			Type superclass = resolved.getGenericSuperclass();
 			if (superclass == null) {
 				return NONE;
@@ -499,6 +519,14 @@ public class ResolvableType implements Serializable {
 		}
 		ResolvableType[] interfaces = this.interfaces;
 		if (interfaces == null) {
+			// getGenericInterfaces() 是 Class 的方法，用来拿到当前类/接口“直接实现”的所有接口的“泛型签名”
+			// （注意：只包括直接实现的接口，不包括父类，也不包括父接口的父接口）
+			// class StringList implements List<String>, Comparable<String> {}
+			//
+			// Type[] ifaces = StringList.class.getGenericInterfaces();
+			// 结果：
+			//		[java.util.List<java.lang.String>,
+			//		java.lang.Comparable<java.lang.String>]
 			Type[] genericIfcs = resolved.getGenericInterfaces();
 			interfaces = new ResolvableType[genericIfcs.length];
 			for (int i = 0; i < genericIfcs.length; i++) {
@@ -708,6 +736,8 @@ public class ResolvableType implements Serializable {
 		ResolvableType[] generics = this.generics;
 		if (generics == null) {
 			if (this.type instanceof Class) {
+				// getTypeParameters() 是 java.lang.Class（以及 java.lang.reflect.Method、Constructor）的方法，
+				// 用来拿到当前类或方法在声明时写的“泛型变量”（即 <T, E, K extends Comparable<K>> 里的那些字母）。
 				Type[] typeParams = ((Class<?>) this.type).getTypeParameters();
 				generics = new ResolvableType[typeParams.length];
 				for (int i = 0; i < generics.length; i++) {
@@ -715,6 +745,14 @@ public class ResolvableType implements Serializable {
 				}
 			}
 			else if (this.type instanceof ParameterizedType) {
+				// getActualTypeArguments() 是 ParameterizedType 接口的方法，用来一次性取出“泛型调用处”写在 <> 里的所有实参。
+				// “把 Map<String, List<Integer>> 里的 String 和 List<Integer> 原样抠出来。”
+				// | 实参形态               | 返回的 Type 子接口        |
+				// | ------------------ | ------------------- |
+				// | `String`           | `Class<String>`     |
+				// | `List<?>`          | `ParameterizedType` |
+				// | `? extends Number` | `WildcardType`      |
+				// | `T`                | `TypeVariable`      |
 				Type[] actualTypeArguments = ((ParameterizedType) this.type).getActualTypeArguments();
 				generics = new ResolvableType[actualTypeArguments.length];
 				for (int i = 0; i < actualTypeArguments.length; i++) {
@@ -832,9 +870,11 @@ public class ResolvableType implements Serializable {
 	 * as it cannot be serialized.
 	 */
 	ResolvableType resolveType() {
+		// 处理像List<String>这样的参数化类型 使用List来处理
 		if (this.type instanceof ParameterizedType) {
 			return forType(((ParameterizedType) this.type).getRawType(), this.variableResolver);
 		}
+		// 处理?、? extends Number、? super String等通配符类型
 		if (this.type instanceof WildcardType) {
 			Type resolved = resolveBounds(((WildcardType) this.type).getUpperBounds());
 			if (resolved == null) {
@@ -842,6 +882,7 @@ public class ResolvableType implements Serializable {
 			}
 			return forType(resolved, this.variableResolver);
 		}
+		// 处理泛型声明中的类型参数，如T、K、V
 		if (this.type instanceof TypeVariable) {
 			TypeVariable<?> variable = (TypeVariable<?>) this.type;
 			// Try default variable resolution
@@ -852,6 +893,18 @@ public class ResolvableType implements Serializable {
 				}
 			}
 			// Fallback to bounds
+			// getBounds() 是 TypeVariable 接口里的方法，用来取出泛型变量声明时写的“上界”
+			// （即 <T extends Number & Comparable<T>> 里 extends 后面的那一串）
+			// “把 <T extends Number & Comparable<T>> 里的 Number 和 Comparable<T> 抠出来。”
+			// class Foo<T extends Number & Comparable<T>> {}
+			//
+			// TypeVariable<Class<Foo>> tv = Foo.class.getTypeParameters()[0];
+			// Type[] bounds = tv.getBounds();
+			//	 bounds[0] = Number.class
+			//	 bounds[1] = ParameterizedType for Comparable<T>
+			// 如果没写 extends，数组长度 = 1，元素为 Object.class：
+			// class Bar<T> {}   // 等价于 <T extends Object>
+			// Type[] b = Bar.class.getTypeParameters()[0].getBounds(); // [Object.class]
 			return forType(resolveBounds(variable.getBounds()), this.variableResolver);
 		}
 		return NONE;
@@ -876,6 +929,14 @@ public class ResolvableType implements Serializable {
 			if (resolved == null) {
 				return null;
 			}
+			/**
+			 * getTypeParameters 是 Java 反射中**“拿到声明的泛型变量”**的统一入口，定义在三个地方：
+			 * java.lang.Class
+			 * java.lang.reflect.Method
+			 * java.lang.reflect.Constructor
+			 * 返回 TypeVariable[]，每个元素对应声明里 < > 中的一个字母。
+			 *
+			 */
 			TypeVariable<?>[] variables = resolved.getTypeParameters();
 			for (int i = 0; i < variables.length; i++) {
 				if (ObjectUtils.nullSafeEquals(variables[i].getName(), variable.getName())) {
@@ -883,6 +944,26 @@ public class ResolvableType implements Serializable {
 					return forType(actualType, this.variableResolver);
 				}
 			}
+			/**
+			 * getOwnerType() 是 ParameterizedType 接口的方法，用来取出**“内部泛型类”的所属外部类型**（即“ enclosing 实例类型”）。
+			 * 只有 成员内部类 / 静态内部类 / 局部内部类 的泛型声明才可能让这个方法返回非空值；对于顶层类它永远返回 null。
+			 * “把 Outer<String>.Inner<Integer> 里的 Outer<String> 抠出来。”
+			 * class Outer<T> {
+			 *     class Inner<U> {}
+			 * }
+			 *
+			 * // 拿到 Inner 的泛型类型
+			 * ParameterizedType innerType = (ParameterizedType)
+			 *         Outer.Inner.class.getGenericInterfaces()[0]; // 或字段等
+			 *
+			 * Type owner = innerType.getOwnerType(); // 返回 ParameterizedType for Outer<String>
+			 * System.out.println(owner);             // Outer<java.lang.String>
+			 *
+			 * | 方法               | 返回                                 |
+			 * | ---------------- | ---------------------------------- |
+			 * | `getRawType()`   | `Inner.class`                      |
+			 * | `getOwnerType()` | `Outer<String>`（ParameterizedType） |
+			 */
 			Type ownerType = parameterizedType.getOwnerType();
 			if (ownerType != null) {
 				return forType(ownerType, this.variableResolver).resolveVariable(variable);

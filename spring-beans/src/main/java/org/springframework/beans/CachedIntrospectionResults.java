@@ -283,8 +283,8 @@ public final class CachedIntrospectionResults {
 			// This call is slow so we do it once.
 			PropertyDescriptor[] pds = this.beanInfo.getPropertyDescriptors();
 			for (PropertyDescriptor pd : pds) {
-				if (Class.class == beanClass && !("name".equals(pd.getName()) ||
-						(pd.getName().endsWith("Name") && String.class == pd.getPropertyType()))) {
+				if (Class.class == beanClass &&
+						!("name".equals(pd.getName()) || (pd.getName().endsWith("Name") && String.class == pd.getPropertyType()))) {
 					// Only allow all name variants of Class properties
 					continue;
 				}
@@ -344,9 +344,10 @@ public final class CachedIntrospectionResults {
 	}
 
 	private boolean isInvalidReadOnlyPropertyType(@Nullable Class<?> returnType) {
-		return (returnType != null && (AutoCloseable.class.isAssignableFrom(returnType) ||
-				ClassLoader.class.isAssignableFrom(returnType) ||
-				ProtectionDomain.class.isAssignableFrom(returnType)));
+		return (returnType != null &&
+				(AutoCloseable.class.isAssignableFrom(returnType)
+						|| ClassLoader.class.isAssignableFrom(returnType)
+						|| ProtectionDomain.class.isAssignableFrom(returnType)));
 	}
 
 

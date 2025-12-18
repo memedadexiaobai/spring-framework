@@ -29,7 +29,7 @@ import java.lang.reflect.AccessibleObject;
  * using the {@link #getStaticPart()} method.
  *
  * <p>In the context of an interception framework, a runtime joinpoint
- * is then the reification of an access to an accessible object (a
+ * is then the reification(具体化) of an access to an accessible object (a
  * method, a constructor, a field), i.e. the static part of the
  * joinpoint. It is passed to the interceptors that are installed on
  * the static joinpoint.

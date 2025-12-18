@@ -50,6 +50,16 @@ public class StandardReflectionParameterNameDiscoverer implements ParameterNameD
 		String[] parameterNames = new String[parameters.length];
 		for (int i = 0; i < parameters.length; i++) {
 			Parameter param = parameters[i];
+			/**
+			 * param.isNamePresent() 是 Java 8 开始加在 java.lang.reflect.Parameter 上的方法，用来快速判断“当前编译单元里是否保留了形参名”。
+			 * 	返回 true → 可以通过 param.getName() 拿到源码里的真实变量名（如 userId）。
+			 * 	返回 false → 只能拿到 arg0、arg1 这种占位符，不要指望用变量名去做映射。
+			 *
+			 * 底层原理
+			 * 	依赖 -parameters 编译开关（JDK 8+ 新增）。
+			 * 	加 -parameters：class 文件里会多一个 MethodParameters 属性，存真实名。
+			 * 	不加：class 文件只有类型，没有名字，反射只能拿到 arg0、arg1。
+			 */
 			if (!param.isNamePresent()) {
 				return null;
 			}

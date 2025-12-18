@@ -175,6 +175,19 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 	 * @param beanName the name of the bean to look for
 	 * @param allowEarlyReference whether early references should be created or not
 	 * @return the registered singleton object, or {@code null} if none found
+	 *
+	 * | 缓存  | Map 名                   | 存放内容                           | 作用                      |
+	 * | --   | ----------------------- | ------------------------           | ----------------------- |
+	 * | 一级 | `singletonObjects`      | **成品 Bean**（完全初始化）           | 最终单例                    |
+	 * | 二级 | `earlySingletonObjects` | **提前曝光 Bean**（刚实例化，属性未填） | 打破循环依赖 **重复创建**         |
+	 * | 三级 | `singletonFactories`    | `ObjectFactory` 回调                | 打破循环依赖 **重复代理**（AOP 场景） |
+	 *
+	 * 只用两级行不行？
+	 * 	两级足够解决“纯实例”循环依赖。
+	 * 	三级是为了“代理”：
+	 * 		如果 A 需要被 AOP 代理，代理对象必须在属性注入前就产生（否则 B 拿到的是原始对象）。
+	 * 		三级缓存把 “生成早期引用” 做成 延迟回调，只有发生循环依赖时才去执行 BeanPostProcessor，创建代理并放入二级缓存；
+	 * 	不发生循环依赖时，代理仍由后置处理器在初始化阶段正常生成，保证性能与一致性。
 	 */
 	@Nullable
 	protected Object getSingleton(String beanName, boolean allowEarlyReference) {
