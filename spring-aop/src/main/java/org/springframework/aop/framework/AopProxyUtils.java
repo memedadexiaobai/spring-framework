@@ -223,19 +223,30 @@ public abstract class AopProxyUtils {
 		if (ObjectUtils.isEmpty(arguments)) {
 			return new Object[0];
 		}
+		/**
+		 * 可以反射检查一个方法是否是可变参数方法。如果方法是可变参数的，则返回 true，否则返回 false
+		 * public void varArgsMethod(int... args) {
+		 *     // 方法实现
+		 * }
+		 * 在这个例子中，varArgsMethod 是一个可变参数方法，因为它接受不定数量的 int 类型参数。
+		 */
 		if (method.isVarArgs()) {
 			if (method.getParameterCount() == arguments.length) {
 				Class<?>[] paramTypes = method.getParameterTypes();
-				int varargIndex = paramTypes.length - 1;
+				int varargIndex = paramTypes.length - 1; //可变参数一定是在最后一个位置
 				Class<?> varargType = paramTypes[varargIndex];
 				if (varargType.isArray()) {
 					Object varargArray = arguments[varargIndex];
+					//含义：判断用户传递的可变参数是否为 Object[] 类型，且与目标数组类型不兼容。
+					//作用：检测是否需要进行类型转换。
 					if (varargArray instanceof Object[] && !varargType.isInstance(varargArray)) {
 						Object[] newArguments = new Object[arguments.length];
+						// 复制可变参数之前的参数到新参数数组
 						System.arraycopy(arguments, 0, newArguments, 0, varargIndex);
 						Class<?> targetElementType = varargType.getComponentType();
 						int varargLength = Array.getLength(varargArray);
 						Object newVarargArray = Array.newInstance(targetElementType, varargLength);
+						//将之前的可变参数数组元素复制到新的参数数据实例
 						System.arraycopy(varargArray, 0, newVarargArray, 0, varargLength);
 						newArguments[varargIndex] = newVarargArray;
 						return newArguments;

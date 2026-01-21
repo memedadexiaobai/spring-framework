@@ -114,14 +114,14 @@ public class RootBeanDefinition extends AbstractBeanDefinition {
 	/** Package-visible field that indicates MergedBeanDefinitionPostProcessor having been applied. */
 	boolean postProcessed = false;
 
-	/** Package-visible field that indicates a before-instantiation post-processor having kicked in. */
+	/** Package-visible field that indicates a before-instantiation post-processor having kicked in(踢开，生效). */
 	@Nullable
 	volatile Boolean beforeInstantiationResolved;
 
 	@Nullable
 	private Set<Member> externallyManagedConfigMembers;
 
-	@Nullable
+	@Nullable //external:外部的
 	private Set<String> externallyManagedInitMethods;
 
 	@Nullable
@@ -282,6 +282,25 @@ public class RootBeanDefinition extends AbstractBeanDefinition {
 
 	/**
 	 * Return the target definition that is being decorated by this bean definition, if any.
+	 * `getDecoratedDefinition()` 是 Spring 框架中的一个方法，通常在 `BeanDefinition` 的某些实现类中使用。
+	 * 这个方法的用途和使用场景与 Spring 的装饰器模式（Decorator Pattern）相关。
+	 * 当一个 `BeanDefinition` 被装饰或包装时，它可以提供对原始定义的引用，以便框架能够在需要时访问未被装饰的定义。
+	 *
+	 * ### 使用场景
+	 *
+	 * - **AOP 增强**：在 Spring AOP 中，当使用 `@Aspect` 或其他 AOP 功能时，Spring 会动态地创建代理类来增强目标 Bean 的行为。
+	 * 		在这种情况下，`getDecoratedDefinition()` 可以用来获取原始的 Bean 定义，而不包括 AOP 代理的装饰。
+	 * - **动态修改 Bean 定义**：在某些情况下，开发者可能希望在运行时动态地修改 Bean 的定义，如改变初始化方法、销毁方法、添加属性等。
+	 * 		`getDecoratedDefinition()` 允许访问原始定义，以便在应用这些修改时保留原始定义的完整性。
+	 * - **嵌套 Bean 定义**：当一个 Bean 的定义本身是另一个 Bean 定义的一部分时（例如，当一个 Bean 定义嵌套在另一个 Bean 的属性中），
+	 * 		`getDecoratedDefinition()` 可以用来访问最外层的 Bean 定义。
+	 *
+	 * ### 总结
+	 *
+	 * `getDecoratedDefinition()` 是 Spring 框架内部机制的一部分，用于处理装饰器模式下的 Bean 定义。
+	 * 它允许框架在需要时访问原始的 Bean 定义，而不考虑是否应用了任何装饰或包装逻辑。
+	 * 这在 Spring 的 AOP、动态代理和其他高级功能中非常有用。
+	 * 在日常开发中，普通开发者通常不需要直接调用这个方法，它更多是 Spring 框架内部实现细节的一部分。
 	 */
 	@Nullable
 	public BeanDefinitionHolder getDecoratedDefinition() {

@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
 
+import org.aspectj.internal.lang.reflect.AjTypeImpl;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.reflect.AjType;
 import org.aspectj.lang.reflect.AjTypeSystem;
@@ -75,8 +76,8 @@ public class AspectMetadata implements Serializable {
 
 	/**
 	 * Create a new AspectMetadata instance for the given aspect class.
-	 * @param aspectClass the aspect class
-	 * @param aspectName the name of the aspect
+	 * @param aspectClass the aspect class 切面类
+	 * @param aspectName the name of the aspect 切面beanName
 	 */
 	public AspectMetadata(Class<?> aspectClass, String aspectName) {
 		this.aspectName = aspectName;
@@ -85,6 +86,7 @@ public class AspectMetadata implements Serializable {
 		AjType<?> ajType = null;
 		while (currClass != Object.class) {
 			AjType<?> ajTypeToCheck = AjTypeSystem.getAjType(currClass);
+			// 判断标准 @Aspect 注解
 			if (ajTypeToCheck.isAspect()) {
 				ajType = ajTypeToCheck;
 				break;
@@ -100,6 +102,9 @@ public class AspectMetadata implements Serializable {
 		this.aspectClass = ajType.getJavaClass();
 		this.ajType = ajType;
 
+		/**
+		 * @Aspect 注解可以觉得生效的范围，判断标准是 value 的值，{@link AjTypeImpl#getPerClause()} 默认是 SINGLETON
+		 */
 		switch (this.ajType.getPerClause().getKind()) {
 			case SINGLETON:
 				this.perClausePointcut = Pointcut.TRUE;

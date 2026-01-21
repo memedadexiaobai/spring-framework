@@ -97,7 +97,7 @@ public class MutableSortDefinition implements SortDefinition, Serializable {
 			this.property = "";
 		}
 		else {
-			// Implicit toggling of ascending?
+			// Implicit toggling(切换) of ascending?
 			if (isToggleAscendingOnProperty()) {
 				this.ascending = (!property.equals(this.property) || !this.ascending);
 			}

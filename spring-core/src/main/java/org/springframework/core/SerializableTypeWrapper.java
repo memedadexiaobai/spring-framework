@@ -56,6 +56,26 @@ import org.springframework.util.ReflectionUtils;
  */
 final class SerializableTypeWrapper {
 
+	/**
+	 * GenericArrayType 表示一个泛型数组类型
+	 * 	当你需要表示一个数组的组件类型本身是泛型时使用。例如，List<String>[] 是一个泛型数组，其组件类型是 List<String>
+	 * 	Class<?> componentType = List.class;
+	 *  Type genericArrayType = new GenericArrayTypeImpl(componentType);
+	 *
+	 * ParameterizedType 表示一个参数化类型，即一个带有类型参数的泛型类型。
+	 * 	当你需要表示一个具体的参数化类型时使用。例如，List<String> 是一个参数化类型，其中 List 是原始类型，String 是类型参数。
+	 * 	Type type = new ParameterizedTypeImpl(List.class, new Type[]{String.class});
+	 *
+	 * TypeVariable 表示一个类型变量，即在泛型声明中出现的类型参数。
+	 * 	当你需要表示类、接口、方法或构造函数的类型参数时使用。例如，在类声明 <T extends Number> 中，T 是一个类型变量。
+	 * 	TypeVariable<Class<GenericType>> typeVariable = GenericType.class.getTypeParameters()[0];
+	 *
+	 * WildcardType 表示一个通配符类型，它可以是一个无界通配符或有界通配符。
+	 * 	当你需要表示一个未知的类型或一个有界未知类型时使用。例如，List<?> 是一个无界通配符类型，List<? extends Number> 是一个有界通配符类型。
+	 * 	Type wildcardType = new WildcardTypeImpl(new Type[]{Number.class}, null);
+	 *
+	 * 这四个类涵盖了在 Java 中表示不同类型泛型结构的场景，它们在反射和泛型编程中扮演着重要角色。通过这些类型，开发者可以在运行时检查和处理泛型类型信息。
+	 */
 	private static final Class<?>[] SUPPORTED_SERIALIZABLE_TYPES = {
 			GenericArrayType.class, ParameterizedType.class, TypeVariable.class, WildcardType.class};
 

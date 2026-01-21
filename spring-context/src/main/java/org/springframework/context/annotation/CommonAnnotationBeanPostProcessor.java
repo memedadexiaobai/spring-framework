@@ -170,6 +170,7 @@ public class CommonAnnotationBeanPostProcessor extends InitDestroyAnnotationBean
 
 	private final Set<String> ignoredResourceTypes = new HashSet<>(1);
 
+	//指示是否允许框架在名称匹配失败时回退到类型匹配。
 	private boolean fallbackToDefaultTypeMatch = true;
 
 	private boolean alwaysUseJndiLookup = false;
@@ -517,14 +518,16 @@ public class CommonAnnotationBeanPostProcessor extends InitDestroyAnnotationBean
 		if (factory instanceof AutowireCapableBeanFactory) {
 			AutowireCapableBeanFactory beanFactory = (AutowireCapableBeanFactory) factory;
 			DependencyDescriptor descriptor = element.getDependencyDescriptor();
-			if (this.fallbackToDefaultTypeMatch && element.isDefaultName && !factory.containsBean(name)) {
+			if (this.fallbackToDefaultTypeMatch && element.isDefaultName && !factory.containsBean(name)) { //检查当前 bean 工厂中是否不存在名为 name 的 bean。
 				autowiredBeanNames = new LinkedHashSet<>();
+				//按照类型匹配
 				resource = beanFactory.resolveDependency(descriptor, requestingBeanName, autowiredBeanNames, null);
 				if (resource == null) {
 					throw new NoSuchBeanDefinitionException(element.getLookupType(), "No resolvable resource object");
 				}
 			}
 			else {
+				// 按照名称匹配
 				resource = beanFactory.resolveBeanByName(name, descriptor);
 				autowiredBeanNames = Collections.singleton(name);
 			}
@@ -568,6 +571,7 @@ public class CommonAnnotationBeanPostProcessor extends InitDestroyAnnotationBean
 
 		protected String name = "";
 
+		// 表示当前依赖的名称是自动生成的默认名称（如 Spring 自动推断的 bean 名称），而不是用户显式指定的。
 		protected boolean isDefaultName = false;
 
 		protected Class<?> lookupType = Object.class;
@@ -622,7 +626,7 @@ public class CommonAnnotationBeanPostProcessor extends InitDestroyAnnotationBean
 			Class<?> resourceType = resource.type();
 			this.isDefaultName = !StringUtils.hasLength(resourceName);
 			if (this.isDefaultName) {
-				resourceName = this.member.getName();
+				resourceName = this.member.getName();//属性名or方法名
 				if (this.member instanceof Method && resourceName.startsWith("set") && resourceName.length() > 3) {
 					resourceName = Introspector.decapitalize(resourceName.substring(3));
 				}

@@ -53,7 +53,7 @@ import org.springframework.core.io.support.ResourcePatternResolver;
  * creation within an {@link org.springframework.context.ApplicationContext})
  * with resource editors. Used by
  * {@link org.springframework.context.support.AbstractApplicationContext}.
- *
+ * Registrar：注册员 可以理解为这个类把其他的 ResourceEditor 注册到了 注册表
  * @author Juergen Hoeller
  * @author Chris Beams
  * @since 2.0

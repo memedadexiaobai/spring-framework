@@ -32,6 +32,19 @@ import org.aopalliance.aop.Advice;
  *
  * @author Rod Johnson
  * @author Juergen Hoeller
+ *
+ * 这里我简单总结一下，方便理解:
+ *  1. {@link Advisor} ：英文译为顾问，导师，我觉得不妨理解为顾问，而顾问的作用是什么呢？提建议，因此他的属性包含了建议：Advice
+ *              主要分为2个分支：
+ *              	IntroductionAdvisor：支持在不修改类的情况下，添加接口
+ *              	PointcutAdvisor：切面顾问，主要就是 表达式那套
+ *  2. {@link Advice } 英文译为建议，这里只是一个标记性接口,
+ *  		    主要分为4个分支：
+ *  		    	DynamicIntroductionAdvice：
+ *  		        BeforeAdvice：
+ *  		        AfterAdvice：
+ *  		        Interceptor：
+ *  3. {@link Pointcut }：英文译为切入点，也就是说建议提给谁，落地到代码的层面，就是类级别的 ClassFilter 和 方法级别的 MethodMatcher 符合条件的给他们提建议
  */
 public interface Advisor {
 

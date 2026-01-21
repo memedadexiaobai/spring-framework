@@ -146,8 +146,7 @@ class ExtendedBeanInfo implements BeanInfo {
 	public static boolean isCandidateWriteMethod(Method method) {
 		String methodName = method.getName();
 		int nParams = method.getParameterCount();
-		return (methodName.length() > 3
-				&& methodName.startsWith("set")
+		return (methodName.length() > 3 && methodName.startsWith("set")
 				&& Modifier.isPublic(method.getModifiers())
 				&& (!void.class.isAssignableFrom(method.getReturnType()) || Modifier.isStatic(method.getModifiers()))
 				&& (nParams == 1 || (nParams == 2 && int.class == method.getParameterTypes()[0])));
@@ -193,8 +192,8 @@ class ExtendedBeanInfo implements BeanInfo {
 			if (pd instanceof IndexedPropertyDescriptor) {
 				IndexedPropertyDescriptor ipd = (IndexedPropertyDescriptor) pd;
 				candidateType = ipd.getIndexedPropertyType();
-				if (candidateName.equals(propertyName) &&
-						(candidateType.equals(propertyType) || candidateType.equals(propertyType.getComponentType()))) {
+				if (candidateName.equals(propertyName)
+						&& (candidateType.equals(propertyType) || candidateType.equals(propertyType.getComponentType()))) {
 					return pd;
 				}
 			}

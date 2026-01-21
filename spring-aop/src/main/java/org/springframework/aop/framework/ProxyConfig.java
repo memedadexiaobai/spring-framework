@@ -38,6 +38,24 @@ public class ProxyConfig implements Serializable {
 
 	private boolean optimize = false;
 
+	/**
+	 * `AdvisedSupport` 的 `opaque` 属性用于控制生成的代理对象是否可以强制转换为 `Advised` 接口。以下是其具体作用和使用场景：
+	 *
+	 * ### 默认值及行为
+	 * - **默认值**：`opaque` 属性的默认值为 `false`。
+	 * - **行为**：当 `opaque` 为 `false` 时，Spring 创建的代理对象会实现 `Advised` 接口。
+	 * 	 通过这个接口，开发者可以查询代理对象的相关信息，如目标类、`Advice`、`Advisor` 等，也可以对代理对象的配置进行动态修改，如添加或移除 `Advisor`。
+	 *
+	 * ### 设置为 `true` 时的行为
+	 * - **行为**：如果将 `opaque` 设置为 `true`，则生成的代理对象将不会实现 `Advised` 接口。
+	 * 	 这意味着开发者无法通过 `Advised` 接口访问和修改代理对象的配置信息。
+	 *
+	 * ### 使用场景及影响
+	 * - **场景**：在某些情况下，可能不希望代理对象的配置信息被外部修改，或者不需要查询代理对象的配置信息。此时可以将 `opaque` 设置为 `true`。
+	 * - **影响**：设置为 `true` 后，虽然限制了对代理对象配置信息的访问和修改，但可以提高代理对象的封装性，防止意外或恶意的配置更改。同时，这也意味着放弃了在运行时动态调整代理行为的能力。
+	 *
+	 * `AdvisedSupport` 的 `opaque` 属性为开发者提供了对代理对象封装性和可配置性之间的权衡选择。
+	 */
 	boolean opaque = false;
 
 	boolean exposeProxy = false;

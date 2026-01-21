@@ -620,16 +620,17 @@ public abstract class BeanUtils {
 	 */
 	public static boolean isSimpleValueType(Class<?> type) {
 		return (Void.class != type && void.class != type
-				&& (ClassUtils.isPrimitiveOrWrapper(type) ||
-				Enum.class.isAssignableFrom(type) ||
-				CharSequence.class.isAssignableFrom(type) ||
-				Number.class.isAssignableFrom(type) ||
-				Date.class.isAssignableFrom(type) ||
-				Temporal.class.isAssignableFrom(type) ||
-				URI.class == type ||
-				URL.class == type ||
-				Locale.class == type ||
-				Class.class == type));
+				&& (ClassUtils.isPrimitiveOrWrapper(type)
+					|| Enum.class.isAssignableFrom(type)
+					|| CharSequence.class.isAssignableFrom(type)
+					|| Number.class.isAssignableFrom(type)
+					|| Date.class.isAssignableFrom(type)
+					|| Temporal.class.isAssignableFrom(type)
+					|| URI.class == type
+					|| URL.class == type
+					|| Locale.class == type
+					|| Class.class == type)
+		);
 	}
 
 

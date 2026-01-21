@@ -244,9 +244,9 @@ public class InitDestroyAnnotationBeanPostProcessor
 					}
 				}
 			});
-
+			//这里有2个顺序的问题：初始化方法，父类在前，销毁类方法，子类在前
 			initMethods.addAll(0, currInitMethods);
-			destroyMethods.addAll(currDestroyMethods);
+			destroyMethods.addAll(currDestroyMethods);//顺序追加
 			targetClass = targetClass.getSuperclass();
 		}
 		while (targetClass != null && targetClass != Object.class);
@@ -372,8 +372,7 @@ public class InitDestroyAnnotationBeanPostProcessor
 				throw new IllegalStateException("Lifecycle method annotation requires a no-arg method: " + method);
 			}
 			this.method = method;
-			this.identifier = (Modifier.isPrivate(method.getModifiers()) ?
-					ClassUtils.getQualifiedMethodName(method) : method.getName());
+			this.identifier = (Modifier.isPrivate(method.getModifiers()) ? ClassUtils.getQualifiedMethodName(method) : method.getName());
 		}
 
 		public Method getMethod() {

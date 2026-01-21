@@ -800,9 +800,11 @@ class CglibAopProxy implements AopProxy, Serializable {
 		}
 
 		static boolean isMethodProxyCompatible(Method method) {
-			return (Modifier.isPublic(method.getModifiers()) &&
-					method.getDeclaringClass() != Object.class && !AopUtils.isEqualsMethod(method) &&
-					!AopUtils.isHashCodeMethod(method) && !AopUtils.isToStringMethod(method));
+			return (Modifier.isPublic(method.getModifiers())
+					&& method.getDeclaringClass() != Object.class
+					&& !AopUtils.isEqualsMethod(method)
+					&& !AopUtils.isHashCodeMethod(method)
+					&& !AopUtils.isToStringMethod(method));
 		}
 
 		static void logFastClassGenerationFailure(Method method) {

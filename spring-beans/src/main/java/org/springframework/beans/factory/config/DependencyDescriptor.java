@@ -383,31 +383,42 @@ public class DependencyDescriptor extends InjectionPoint implements Serializable
 	 * @return the declared type (never {@code null})
 	 */
 	public Class<?> getDependencyType() {
-		if (this.field != null) {
+		if (this.field != null) { //字段依赖
+			// 如果嵌套层级大于1，需要处理嵌套的泛型类型
 			if (this.nestingLevel > 1) {
+				/**
+				 * 如果嵌套层级大于1，意味着字段是一个嵌套的泛型类型（如 Map<String, List<Integer>>）。
+				 * 通过循环剥离嵌套的泛型结构，直到找到最内层的泛型参数。
+				 * 如果最内层的类型是 Class，直接返回；如果是 ParameterizedType，返回其原始类型；否则默认返回 Object.class。
+				 */
 				Type type = this.field.getGenericType();
 				for (int i = 2; i <= this.nestingLevel; i++) {
 					if (type instanceof ParameterizedType) {
 						Type[] args = ((ParameterizedType) type).getActualTypeArguments();
-						type = args[args.length - 1];
+						type = args[args.length - 1]; // 获取最后一个泛型参数
 					}
 				}
 				if (type instanceof Class) {
 					return (Class<?>) type;
 				}
+				/**
+				 * 第二次判断 else if (type instanceof ParameterizedType) 是为了处理以下场景：
+				 * 最内层仍然是一个泛型类型：即使剥离了嵌套，最内层仍然是一个泛型类型（如 List<?>）。
+				 * 原始类型是泛型类型：确保返回的是泛型类型的原始类（如 List.class）。
+				 */
 				else if (type instanceof ParameterizedType) {
 					Type arg = ((ParameterizedType) type).getRawType();
 					if (arg instanceof Class) {
 						return (Class<?>) arg;
 					}
 				}
-				return Object.class;
+				return Object.class;// 默认返回Object.class
 			}
 			else {
-				return this.field.getType();
+				return this.field.getType();// 直接返回字段的类型
 			}
 		}
-		else {
+		else { //方法参数依赖
 			return obtainMethodParameter().getNestedParameterType();
 		}
 	}

@@ -67,9 +67,9 @@ public abstract class AspectJProxyUtils {
 	 * @param advisor the Advisor to check
 	 */
 	private static boolean isAspectJAdvice(Advisor advisor) {
-		return (advisor instanceof InstantiationModelAwarePointcutAdvisor ||
-				advisor.getAdvice() instanceof AbstractAspectJAdvice ||
-				(advisor instanceof PointcutAdvisor &&
+		return (advisor instanceof InstantiationModelAwarePointcutAdvisor
+				|| advisor.getAdvice() instanceof AbstractAspectJAdvice
+				|| (advisor instanceof PointcutAdvisor &&
 						((PointcutAdvisor) advisor).getPointcut() instanceof AspectJExpressionPointcut));
 	}
 

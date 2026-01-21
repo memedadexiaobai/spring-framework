@@ -193,7 +193,9 @@ abstract class AutowireUtils {
 			}
 		}
 
-		// 这里说明返回的是个泛型 需要推断下真实的类型是什么
+		/**
+		 * 当处理方法参数和返回值时，需要确定参数的实际类型，特别是当参数类型是泛型时。这段代码的目的是在给定方法参数类型和参数值的情况下，尝试解析出泛型返回类型的类。
+		 */
 		if (locallyDeclaredTypeVariableMatchesReturnType) {
 			for (int i = 0; i < methodParameterTypes.length; i++) {
 				Type methodParameterType = methodParameterTypes[i];

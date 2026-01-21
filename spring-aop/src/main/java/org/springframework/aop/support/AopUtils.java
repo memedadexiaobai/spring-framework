@@ -308,6 +308,11 @@ public abstract class AopUtils {
 		}
 		List<Advisor> eligibleAdvisors = new ArrayList<>();
 		for (Advisor candidate : candidateAdvisors) {
+			/**
+			 * IntroductionAdvisor 是一种特殊的 Advisor，它可以为目标类引入新的接口和方法实现。
+			 * 第一次遍历专门用于检查和添加 IntroductionAdvisor 到 eligibleAdvisors 列表中。
+			 * 这一步确保了在后续处理其他类型的 Advisor 时，已经考虑了 IntroductionAdvisor 可能对目标类产生的影响。
+ 			 */
 			if (candidate instanceof IntroductionAdvisor && canApply(candidate, clazz)) {
 				eligibleAdvisors.add(candidate);
 			}
@@ -318,6 +323,10 @@ public abstract class AopUtils {
 				// already processed
 				continue;
 			}
+			/**
+			 * 第二次遍历用于检查和添加非 IntroductionAdvisor 的 Advisor。
+			 * 在检查这些 Advisor 是否适用时，会传入 hasIntroductions 参数，以便在适用性检查中考虑 IntroductionAdvisor 的影响。
+ 			 */
 			if (canApply(candidate, clazz, hasIntroductions)) {
 				eligibleAdvisors.add(candidate);
 			}

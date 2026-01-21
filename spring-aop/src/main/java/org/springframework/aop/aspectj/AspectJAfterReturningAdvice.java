@@ -80,8 +80,8 @@ public class AspectJAfterReturningAdvice extends AbstractAspectJAdvice
 		Class<?> type = getDiscoveredReturningType();
 		Type genericType = getDiscoveredReturningGenericType();
 		// If we aren't dealing with a raw type, check if generic parameters are assignable.
-		return (matchesReturnValue(type, method, returnValue) &&
-				(genericType == null || genericType == type ||
+		return (matchesReturnValue(type, method, returnValue)
+				&& (genericType == null || genericType == type ||
 						TypeUtils.isAssignable(genericType, method.getGenericReturnType())));
 	}
 

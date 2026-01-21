@@ -18,7 +18,7 @@ package org.springframework.expression;
 
 /**
  * Input provided to an expression parser that can influence an expression
- * parsing/compilation routine.
+ * parsing/compilation routine(常规).
  *
  * @author Keith Donald
  * @author Andy Clement
@@ -28,7 +28,7 @@ public interface ParserContext {
 
 	/**
 	 * Whether or not the expression being parsed is a template. A template expression
-	 * consists of literal text that can be mixed with evaluatable blocks. Some examples:
+	 * consists of literal(字面的) text that can be mixed with evaluatable blocks. Some examples:
 	 * <pre class="code">
 	 * 	   Some literal text
 	 *     Hello #{name.firstName}!

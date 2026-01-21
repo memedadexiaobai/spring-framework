@@ -76,7 +76,9 @@ public class DeclareParentsAdvisor implements IntroductionAdvisor {
 
 		// Excludes methods implemented.
 		ClassFilter typePatternFilter = new TypePatternClassFilter(typePattern);
+		//检查 clazz 是否不是 this.introducedInterface 的实现类。
 		ClassFilter exclusion = (clazz -> !this.introducedInterface.isAssignableFrom(clazz));
+		//同时符合 typePatternFilter 和 exclusion
 		this.typePatternClassFilter = ClassFilters.intersection(typePatternFilter, exclusion);
 	}
 

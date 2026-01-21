@@ -485,10 +485,26 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		// Make sure bean class is actually resolved at this point, and
 		// clone the bean definition in case of a dynamically resolved Class
 		// which cannot be stored in the shared merged bean definition.
-		Class<?> resolvedClass = resolveBeanClass(mbd, beanName);
+		Class<?> resolvedClass = resolveBeanClass(mbd, beanName);//方法尝试解析 Bean 的类。这通常涉及将类名字符串转换为实际的 Class 对象。
+		//resolvedClass != null：确保类解析成功。
+		//!mbd.hasBeanClass()：确保原始的 BeanDefinition 没有显式设置类（beanClass 属性为空）。
+		//mbd.getBeanClassName() != null：确保原始的 BeanDefinition 中定义了类名字符串。
 		if (resolvedClass != null && !mbd.hasBeanClass() && mbd.getBeanClassName() != null) {
-			mbdToUse = new RootBeanDefinition(mbd);
-			mbdToUse.setBeanClass(resolvedClass);
+			/**
+			 * 创建一个新的 RootBeanDefinition 实例的原因是为了在不修改原始 BeanDefinition 的情况下，动态地更新或调整某些属性（如设置解析后的类 resolvedClass）
+			 *
+			 * 为什么创建新实例？
+			 *   1.不可变性考量：
+			 *     原始的 BeanDefinition 对象通常是不可变的，或者其属性在解析后不应被随意更改。直接修改原始对象可能会导致意外的行为，尤其是在多线程环境下。
+			 *   2.动态调整：
+			 *     在 Spring 容器解析 Bean 定义的过程中，可能需要根据不同的条件动态调整 Bean 的某些属性（如类信息）。创建新的实例允许对原始定义进行扩展或覆盖，而不影响原始定义。
+			 *   3.缓存和复用：
+			 *     新的 BeanDefinition 实例可以被缓存和复用。在 Spring 容器中，Bean 定义可能会被多次解析和使用，创建新的实例可以避免对原始定义的重复解析。
+			 *   4.隔离修改：
+			 *     修改新的实例而不是原始实例，可以确保容器中其他依赖于原始定义的部分不受影响。这种做法遵循了软件开发中的“开闭原则”（对扩展开放，对修改关闭）
+			 */
+			mbdToUse = new RootBeanDefinition(mbd); //构造一个新的 RootBeanDefinition 实例，并将其初始化为原始 BeanDefinition 的副本。
+			mbdToUse.setBeanClass(resolvedClass);//将解析后的类设置到新的 BeanDefinition 实例
 		}
 
 		// Prepare method overrides. 通过同名方法个数来判断
@@ -597,8 +613,9 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			// 先执行 InstantiationAwareBeanPostProcessor#postProcessAfterInstantiation
 			// InstantiationAwareBeanPostProcessor#postProcessProperties
 			populateBean(beanName, mbd, instanceWrapper);
+			// 1.先回调 Aware 相关接口：BeanNameAware、BeanClassLoaderAware、BeanFactoryAware
 			// 1.执行 BeanPostProcessor#postProcessBeforeInitialization
-			// 2.执行初始化方法
+			// 2.执行初始化方法：如果是 InitializingBean 实现类，先执行 afterPropertiesSet，在执行自定义初始化方法
 			// 3.执行 BeanPostProcessor#postProcessAfterInitialization
 			exposedObject = initializeBean(beanName, exposedObject, mbd);
 		}
@@ -786,8 +803,9 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			 * | ⑤ 类型归约            | 用 `ClassUtils.determineCommonAncestor` 把所有候选返回类型**向上找公共父类/接口**；若找不到公共类型 → 歧义，返回 `null`。                                    |
 			 */
 			for (Method candidate : candidates) {
-				if (Modifier.isStatic(candidate.getModifiers()) == isStatic && mbd.isFactoryMethod(candidate) &&
-						candidate.getParameterCount() >= minNrOfArgs) {
+				if (Modifier.isStatic(candidate.getModifiers()) == isStatic
+						&& mbd.isFactoryMethod(candidate)
+						&& candidate.getParameterCount() >= minNrOfArgs) {//尽量往多了的算
 					// Declared type variables to inspect(检查)? 泛型方法
 					if (candidate.getTypeParameters().length > 0) {
 						try {
@@ -814,8 +832,8 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 							}
 							Class<?> returnType = AutowireUtils.resolveReturnTypeForFactoryMethod(
 									candidate, args, getBeanClassLoader());
-							uniqueCandidate = (commonType == null && returnType == candidate.getReturnType() ?
-									candidate : null);
+							uniqueCandidate = (commonType == null && returnType == candidate.getReturnType()
+									? candidate : null);
 							commonType = ClassUtils.determineCommonAncestor(returnType, commonType);
 							if (commonType == null) {
 								// Ambiguous return types found: return null to indicate "not determinable".
@@ -1249,8 +1267,10 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		// Candidate constructors for autowiring?
 		// SmartInstantiationAwareBeanPostProcessor#determineCandidateConstructors 来推断
 		Constructor<?>[] ctors = determineConstructorsFromBeanPostProcessors(beanClass, beanName);
-		if (ctors != null || mbd.getResolvedAutowireMode() == AUTOWIRE_CONSTRUCTOR ||
-				mbd.hasConstructorArgumentValues() || !ObjectUtils.isEmpty(args)) {
+		if (ctors != null
+				|| mbd.getResolvedAutowireMode() == AUTOWIRE_CONSTRUCTOR
+				|| mbd.hasConstructorArgumentValues()
+				|| !ObjectUtils.isEmpty(args)) {
 			return autowireConstructor(beanName, mbd, ctors, args);
 		}
 
@@ -1445,7 +1465,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 
 		int resolvedAutowireMode = mbd.getResolvedAutowireMode();
 		if (resolvedAutowireMode == AUTOWIRE_BY_NAME || resolvedAutowireMode == AUTOWIRE_BY_TYPE) {
-			MutablePropertyValues newPvs = new MutablePropertyValues(pvs);
+			MutablePropertyValues newPvs = new MutablePropertyValues(pvs);//复制了一份新的
 			// Add property values based on autowire by name if applicable.
 			if (resolvedAutowireMode == AUTOWIRE_BY_NAME) {
 				autowireByName(beanName, mbd, bw, newPvs);
@@ -1594,8 +1614,10 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		PropertyValues pvs = mbd.getPropertyValues();
 		PropertyDescriptor[] pds = bw.getPropertyDescriptors();
 		for (PropertyDescriptor pd : pds) {
-			if (pd.getWriteMethod() != null && !isExcludedFromDependencyCheck(pd) && !pvs.contains(pd.getName()) &&
-					!BeanUtils.isSimpleProperty(pd.getPropertyType())) {
+			if (pd.getWriteMethod() != null
+					&& !isExcludedFromDependencyCheck(pd)
+					&& !pvs.contains(pd.getName())
+					&& !BeanUtils.isSimpleProperty(pd.getPropertyType())) {
 				result.add(pd.getName());
 			}
 		}
@@ -1656,9 +1678,9 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	 * | `AutowireUtils.isSetterDefinedInInterface(pd, ignoredDependencyInterfaces)` | **接口级白名单**：若 setter 方法来自指定接口（如 `BeanNameAware`），也跳过检查；这些接口属性由容器回调填充，无需常规注入。                     |
 	 */
 	protected boolean isExcludedFromDependencyCheck(PropertyDescriptor pd) {
-		return (AutowireUtils.isExcludedFromDependencyCheck(pd) ||
-				this.ignoredDependencyTypes.contains(pd.getPropertyType()) ||
-				AutowireUtils.isSetterDefinedInInterface(pd, this.ignoredDependencyInterfaces));
+		return (AutowireUtils.isExcludedFromDependencyCheck(pd)
+				|| this.ignoredDependencyTypes.contains(pd.getPropertyType())
+				|| AutowireUtils.isSetterDefinedInInterface(pd, this.ignoredDependencyInterfaces));
 	}
 
 	/**
@@ -1895,7 +1917,8 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			throws Throwable {
 
 		boolean isInitializingBean = (bean instanceof InitializingBean);
-		if (isInitializingBean && (mbd == null || !mbd.isExternallyManagedInitMethod("afterPropertiesSet"))) {
+		if (isInitializingBean
+				&& (mbd == null || !mbd.isExternallyManagedInitMethod("afterPropertiesSet"))) {
 			if (logger.isTraceEnabled()) {
 				logger.trace("Invoking afterPropertiesSet() on bean with name '" + beanName + "'");
 			}
@@ -1917,9 +1940,9 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 
 		if (mbd != null && bean.getClass() != NullBean.class) {
 			String initMethodName = mbd.getInitMethodName();
-			if (StringUtils.hasLength(initMethodName) &&
-					!(isInitializingBean && "afterPropertiesSet".equals(initMethodName)) &&
-					!mbd.isExternallyManagedInitMethod(initMethodName)) {
+			if (StringUtils.hasLength(initMethodName)
+					&& !(isInitializingBean && "afterPropertiesSet".equals(initMethodName))
+					&& !mbd.isExternallyManagedInitMethod(initMethodName)) {
 				invokeCustomInitMethod(beanName, bean, mbd);
 			}
 		}

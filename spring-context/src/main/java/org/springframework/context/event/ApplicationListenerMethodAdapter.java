@@ -98,8 +98,7 @@ public class ApplicationListenerMethodAdapter implements GenericApplicationListe
 	public ApplicationListenerMethodAdapter(String beanName, Class<?> targetClass, Method method) {
 		this.beanName = beanName;
 		this.method = BridgeMethodResolver.findBridgedMethod(method);
-		this.targetMethod = (!Proxy.isProxyClass(targetClass) ?
-				AopUtils.getMostSpecificMethod(method, targetClass) : this.method);
+		this.targetMethod = (!Proxy.isProxyClass(targetClass) ? AopUtils.getMostSpecificMethod(method, targetClass) : this.method);
 		this.methodKey = new AnnotatedElementKey(this.targetMethod, targetClass);
 
 		EventListener ann = AnnotatedElementUtils.findMergedAnnotation(this.targetMethod, EventListener.class);
@@ -213,8 +212,8 @@ public class ApplicationListenerMethodAdapter implements GenericApplicationListe
 			return new Object[0];
 		}
 		Class<?> declaredEventClass = declaredEventType.toClass();
-		if (!ApplicationEvent.class.isAssignableFrom(declaredEventClass) &&
-				event instanceof PayloadApplicationEvent) {
+		if (!ApplicationEvent.class.isAssignableFrom(declaredEventClass)
+				&& event instanceof PayloadApplicationEvent) {
 			Object payload = ((PayloadApplicationEvent<?>) event).getPayload();
 			if (declaredEventClass.isInstance(payload)) {
 				return new Object[] {payload};

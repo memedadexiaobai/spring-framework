@@ -180,8 +180,8 @@ public final class CachedIntrospectionResults {
 		results = new CachedIntrospectionResults(beanClass);
 		ConcurrentMap<Class<?>, CachedIntrospectionResults> classCacheToUse;
 
-		if (ClassUtils.isCacheSafe(beanClass, CachedIntrospectionResults.class.getClassLoader()) ||
-				isClassLoaderAccepted(beanClass.getClassLoader())) {
+		if (ClassUtils.isCacheSafe(beanClass, CachedIntrospectionResults.class.getClassLoader())
+				|| isClassLoaderAccepted(beanClass.getClassLoader())) {
 			classCacheToUse = strongClassCache;
 		}
 		else {
@@ -247,9 +247,21 @@ public final class CachedIntrospectionResults {
 				return beanInfo;
 			}
 		}
+		/**
+		 * Introspector.getBeanInfo(beanClass, Introspector.IGNORE_ALL_BEANINFO)
+		 * 	 忽略 BeanInfo 文件：通过指定 Introspector.IGNORE_ALL_BEANINFO 标志，告诉 Java 的内省机制忽略 .beaninfo 文件中的自定义信息。
+		 * 	 场景：在需要快速获取默认的 Bean 信息时，例如在开发阶段或测试中，开发者希望减少对 .beaninfo 文件的依赖。
+		 *   优点：减少配置文件的依赖，加快开发和测试流程。
+		 *   缺点：无法利用 .beaninfo 文件中的自定义信息，例如自定义的属性编辑器或事件监听器。
+		 * Introspector.getBeanInfo(beanClass)
+		 *   包含 BeanInfo 文件：不指定任何标志时，默认会加载与 beanClass 对应的 .beaninfo 文件（如果存在）。
+		 *   场景：当需要充分利用 .beaninfo 文件中定义的自定义行为时，例如在生产环境中，开发者希望通过自定义的 Bean 信息来增强应用的功能。
+		 *   优点：能够利用 .beaninfo 文件中的自定义信息，增强 Bean 的行为。
+		 *   缺点：需要维护 .beaninfo 文件，增加了一定的配置复杂性。
+		 */
 		return (shouldIntrospectorIgnoreBeaninfoClasses ?
-				Introspector.getBeanInfo(beanClass, Introspector.IGNORE_ALL_BEANINFO) :
-				Introspector.getBeanInfo(beanClass));
+				Introspector.getBeanInfo(beanClass, Introspector.IGNORE_ALL_BEANINFO) //用于忽略 .beaninfo 文件中的自定义信息，适合快速开发和测试。
+				: Introspector.getBeanInfo(beanClass)); //加载 .beaninfo 文件，适合需要自定义 Bean 行为的生产环境。
 	}
 
 
@@ -283,8 +295,8 @@ public final class CachedIntrospectionResults {
 			// This call is slow so we do it once.
 			PropertyDescriptor[] pds = this.beanInfo.getPropertyDescriptors();
 			for (PropertyDescriptor pd : pds) {
-				if (Class.class == beanClass &&
-						!("name".equals(pd.getName()) || (pd.getName().endsWith("Name") && String.class == pd.getPropertyType()))) {
+				if (Class.class == beanClass
+						&& !("name".equals(pd.getName()) || (pd.getName().endsWith("Name") && String.class == pd.getPropertyType()))) {
 					// Only allow all name variants of Class properties
 					continue;
 				}
@@ -344,8 +356,8 @@ public final class CachedIntrospectionResults {
 	}
 
 	private boolean isInvalidReadOnlyPropertyType(@Nullable Class<?> returnType) {
-		return (returnType != null &&
-				(AutoCloseable.class.isAssignableFrom(returnType)
+		return (returnType != null
+				&& (AutoCloseable.class.isAssignableFrom(returnType)
 						|| ClassLoader.class.isAssignableFrom(returnType)
 						|| ProtectionDomain.class.isAssignableFrom(returnType)));
 	}

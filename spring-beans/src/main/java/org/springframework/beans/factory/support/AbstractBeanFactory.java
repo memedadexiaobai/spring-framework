@@ -506,41 +506,182 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	 * @since 5.2
 	 * @see #getBean
 	 * @see #getType
+	 *
+	 * ### 为什么这么设计
+	 *
+	 * 这段代码的设计是为了全面而准确地判断一个 bean 是否匹配指定的类型。Spring 容器中 bean 的管理非常灵活，
+	 * 涉及单例、原型、FactoryBean、继承、泛型等复杂场景。因此，需要通过多种逻辑分支来覆盖所有可能的情况，确保类型匹配的准确性。
+	 *
+	 * ### 使用场景示例
+	 *
+	 * #### 场景一：判断一个普通的 Singleton Bean 是否匹配指定类型
+	 *
+	 * ```java
+	 * // 配置类
+	 * @Configuration
+	 * public class AppConfig {
+	 *     @Bean
+	 *     public MyService myService() {
+	 *         return new MyService();
+	 *     }
+	 * }
+	 *
+	 * // 使用
+	 * ApplicationContext context = new AnnotationConfigApplicationContext(AppConfig.class);
+	 * boolean isMatch = context.getTypeMatcher().isTypeMatch("myService", ResolvableType.forClass(MyService.class));
+	 * ```
+	 *
+	 * #### 场景二：判断一个 FactoryBean 创建的对象是否匹配指定类型
+	 *
+	 * ```java
+	 * // FactoryBean 实现
+	 * public class MyFactoryBean implements FactoryBean<MyBean> {
+	 *     @Override
+	 *     public MyBean getObject() {
+	 *         return new MyBean();
+	 *     }
+	 *
+	 *     @Override
+	 *     public Class<?> getObjectType() {
+	 *         return MyBean.class;
+	 *     }
+	 * }
+	 *
+	 * // 配置类
+	 * @Configuration
+	 * public class AppConfig {
+	 *     @Bean
+	 *     public FactoryBean<MyBean> myFactoryBean() {
+	 *         return new MyFactoryBean();
+	 *     }
+	 * }
+	 *
+	 * // 使用
+	 * ApplicationContext context = new AnnotationConfigApplicationContext(AppConfig.class);
+	 * boolean isMatch = context.getTypeMatcher().isTypeMatch("&myFactoryBean", ResolvableType.forClass(MyBean.class));
+	 * ```
+	 *
+	 * #### 场景三：判断一个带泛型的 bean 是否匹配指定的泛型类型
+	 *
+	 * ```java
+	 * // 配置类
+	 * @Configuration
+	 * public class AppConfig {
+	 *     @Bean
+	 *     public List<String> stringList() {
+	 *         return new ArrayList<>();
+	 *     }
+	 * }
+	 *
+	 * // 使用
+	 * ApplicationContext context = new AnnotationConfigApplicationContext(AppConfig.class);
+	 * ResolvableType listType = ResolvableType.forClassWithGenerics(List.class, String.class);
+	 * boolean isMatch = context.getTypeMatcher().isTypeMatch("stringList", listType);
+	 * ```
+	 *
+	 * #### 场景四：从父容器中获取 bean 并判断类型匹配
+	 *
+	 * ```java
+	 * // 父容器配置
+	 * AnnotationConfigApplicationContext parentContext = new AnnotationConfigApplicationContext();
+	 * parentContext.register(AppConfig.class);
+	 * parentContext.refresh();
+	 *
+	 * // 子容器配置
+	 * AnnotationConfigApplicationContext childContext = new AnnotationConfigApplicationContext();
+	 * childContext.setParent(parentContext);
+	 * childContext.refresh();
+	 *
+	 * // 使用
+	 * boolean isMatch = childContext.getTypeMatcher().isTypeMatch("myService", ResolvableType.forClass(MyService.class));
+	 * ```
+	 *
+	 * #### 场景五：预测一个未初始化 bean 的类型是否匹配指定类型
+	 *
+	 * ```java
+	 * // 配置类
+	 * @Configuration
+	 * public class AppConfig {
+	 *     @Bean
+	 *     @Lazy
+	 *     public MyService myService() {
+	 *         return new MyService();
+	 *     }
+	 * }
+	 *
+	 * // 使用
+	 * ApplicationContext context = new AnnotationConfigApplicationContext(AppConfig.class);
+	 * boolean isMatch = context.getTypeMatcher().isTypeMatch("myService", ResolvableType.forClass(MyService.class));
+	 * ```
+	 *
+	 * ### 总结
+	 *
+	 * 每个分支的实现都是为了适应 Spring 容器中 bean 管理的灵活性和复杂性。通过上述使用示例可以看出，这些分支在实际开发中都是非常常见且必要的：
+	 *
+	 * - **分支一**：处理 FactoryBean 的引用，支持 FactoryBean 本身的获取和其创建对象的获取。
+	 * - **分支二**：确保对已注册的单例 bean 的快速类型匹配。
+	 * - **分支三到六**：处理 FactoryBean 的复杂情况，确保无论是获取 FactoryBean 本身还是其创建的对象，都能准确判断类型匹配。
+	 * - **分支七到九**：支持从父容器获取 bean 并进行类型匹配，增强 Spring 容器的模块化和层次化管理能力。
+	 * - **分支十到十一**：处理 bean 尚未初始化时的类型预测，确保即使 bean 未被创建，也能提前判断类型匹配。
+	 *
+	 * 这些分支共同确保了 Spring 容器在各种复杂场景下都能准确、高效地进行类型匹配，从而支持开发者灵活地管理和使用 bean。
 	 */
 	protected boolean isTypeMatch(String name, ResolvableType typeToMatch, boolean allowFactoryBeanInit)
 			throws NoSuchBeanDefinitionException {
 
-		String beanName = transformedBeanName(name);
-		boolean isFactoryDereference = BeanFactoryUtils.isFactoryDereference(name);
+		String beanName = transformedBeanName(name); //拿到规范名
+		boolean isFactoryDereference = BeanFactoryUtils.isFactoryDereference(name); //判断是不是FactoryBeanName
 
 		// Check manually registered singletons.
 		Object beanInstance = getSingleton(beanName, false);
 		if (beanInstance != null && beanInstance.getClass() != NullBean.class) {
+			// 如果是 FactoryBean 的情况
 			if (beanInstance instanceof FactoryBean) {
-				if (!isFactoryDereference) {
+				// 非 FactoryBean 引用：尝试获取 FactoryBean 产生的 object 的类型，并检查是否匹配 typeToMatch。
+				if (!isFactoryDereference) { //name不是 FactoryBeanName
+					// 获取原始类型对比
 					Class<?> type = getTypeForFactoryBean((FactoryBean<?>) beanInstance);
 					return (type != null && typeToMatch.isAssignableFrom(type));
 				}
 				else {
+					// FactoryBean 引用：直接检查 beanInstance 是否是 typeToMatch 的实例。
 					return typeToMatch.isInstance(beanInstance);
 				}
 			}
-			else if (!isFactoryDereference) {
+			else if (!isFactoryDereference) { //当 beanInstance 不是 FactoryBean，并且请求不是 FactoryBean 引用时
+				// 直接类型匹配：检查 beanInstance 是否是 typeToMatch 的实例。
 				if (typeToMatch.isInstance(beanInstance)) {
 					// Direct match for exposed instance?
 					return true;
 				}
+				// 泛型匹配：当 typeToMatch 包含泛型参数时，进一步检查 bean 的定义类型是否兼容。 比如List<XXX>
 				else if (typeToMatch.hasGenerics() && containsBeanDefinition(beanName)) {
 					// Generics potentially only match on the target class, not on the proxy...
 					RootBeanDefinition mbd = getMergedLocalBeanDefinition(beanName);
-					Class<?> targetType = mbd.getTargetType();
+					Class<?> targetType = mbd.getTargetType();//从 bean 定义中解析出的目标类型，可能是代理类的原始类型。
+					/**
+					 * 为什么这么写？
+					 *  1.CGLIB 代理的特殊性：
+					 *   CGLIB 代理类的运行时类与目标类不同，直接比较类会失败。
+					 *   必须通过 ClassUtils.getUserClass 获取原始类，并结合实例检查（isInstance）确保兼容性。
+					 *  2.泛型支持：
+					 *   需要同时支持原始类型匹配和泛型参数匹配。
+					 *   通过 isAssignableFrom 可以正确处理泛型边界（如 List<String> 和 List<?> 的关系）。
+					 *  3.代理暴露接口的验证：
+					 *   即使目标类型兼容，也需验证代理类是否确实暴露了 typeToMatch 的接口或类。
+					 */
 					if (targetType != null && targetType != ClassUtils.getUserClass(beanInstance)) {
+						// 当 bean 使用 CGLIB 代理（例如，当类没有接口且需要 AOP 代理时），beanInstance 的运行时类是 CGLIB 生成的动态代理类，而不是原始类。
 						// Check raw class match as well, making sure it's exposed on the proxy.
 						Class<?> classToMatch = typeToMatch.resolve();
+						//场景：即使目标类型（targetType）与 typeToMatch 匹配，也需要确保 beanInstance 直接兼容 typeToMatch，避免代理类导致的不一致。
+						//例如：如果 typeToMatch 是 MyService.class，而 beanInstance 是 MyService$$EnhancerByCGLIB$$...，则直接检查 beanInstance 是否是 MyService 的实例。
 						if (classToMatch != null && !classToMatch.isInstance(beanInstance)) {
 							return false;
 						}
-						if (typeToMatch.isAssignableFrom(targetType)) {
+						//场景：当 targetType 是 typeToMatch 的子类型时（包括泛型参数匹配），返回 true。
+						//例如：如果 targetType 是 List<String>，而 typeToMatch 是 List<?>，则泛型兼容，返回 true。
+						if (typeToMatch.isAssignableFrom(targetType)) {//检查 targetType 是否可以赋值给 typeToMatch。
 							return true;
 						}
 					}
@@ -553,6 +694,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 			}
 			return false;
 		}
+		// 如果 beanName 对应一个单例 bean 但没有对应的 beanDefinition
 		else if (containsSingleton(beanName) && !containsBeanDefinition(beanName)) {
 			// null instance registered
 			return false;
@@ -581,9 +723,8 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 		// Attempt to predict the bean type
 		Class<?> predictedType = null;
 
-		// We're looking for a regular reference but we're a factory bean that has
-		// a decorated bean definition. The target bean should be the same type
-		// as FactoryBean would ultimately return.
+		// We're looking for a regular reference but we're a factory bean that has a decorated bean definition.
+		// The target bean should be the same type as FactoryBean would ultimately return.
 		if (!isFactoryDereference && dbd != null && isFactoryBean(beanName, mbd)) {
 			// We should only attempt if the user explicitly set lazy-init to true
 			// and we know the merged bean definition is for a factory bean.
@@ -619,7 +760,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 		}
 		else if (isFactoryDereference) {
 			// Special case: A SmartInstantiationAwareBeanPostProcessor returned a non-FactoryBean
-			// type but we nevertheless are being asked to dereference a FactoryBean...
+			// type but we nevertheless(然而) are being asked to dereference a FactoryBean...
 			// Let's check the original bean class and proceed with it if it is a FactoryBean.
 			predictedType = predictBeanType(beanName, mbd, FactoryBean.class);
 			if (predictedType == null || !FactoryBean.class.isAssignableFrom(predictedType)) {
@@ -1237,6 +1378,8 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 		/**
 		 * {@link org.springframework.context.support.AbstractApplicationContext#prepareBeanFactory(ConfigurableListableBeanFactory)} 添加了
 		 * @see org.springframework.beans.support.ResourceEditorRegistrar 作为 PropertyEditorRegistrar
+		 *
+		 * registry：注册表 里边登记的是 registrar
 		 */
 		if (!this.propertyEditorRegistrars.isEmpty()) {
 			for (PropertyEditorRegistrar registrar : this.propertyEditorRegistrars) { // registrar:注册员
@@ -1884,9 +2027,11 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	 * @see org.springframework.beans.factory.config.DestructionAwareBeanPostProcessor
 	 */
 	protected boolean requiresDestruction(Object bean, RootBeanDefinition mbd) {
-		return (bean.getClass() != NullBean.class &&
-				(DisposableBeanAdapter.hasDestroyMethod(bean, mbd) || (hasDestructionAwareBeanPostProcessors() &&
-						DisposableBeanAdapter.hasApplicableProcessors(bean, getBeanPostProcessors()))));
+		return (bean.getClass() != NullBean.class
+				&& (DisposableBeanAdapter.hasDestroyMethod(bean, mbd)
+					|| (hasDestructionAwareBeanPostProcessors()
+					&& DisposableBeanAdapter.hasApplicableProcessors(bean, getBeanPostProcessors())))
+		);
 	}
 
 	/**

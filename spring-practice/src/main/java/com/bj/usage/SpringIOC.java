@@ -1,5 +1,10 @@
 package com.bj.usage;
 
+import org.springframework.beans.TypeConverter;
+import org.springframework.beans.factory.config.DependencyDescriptor;
+
+import java.util.Set;
+
 /**
  * @Author: xingbinjie
  * @Desc:
@@ -7,6 +12,7 @@ package com.bj.usage;
  * @Date: 2025/12/18
  */
 public class SpringIOC {
+
 	/**
 	 * 手动注入
 	 */
@@ -108,6 +114,14 @@ public class SpringIOC {
 		 *   进行注入
 		 * 		Spring会利用AutowiredAnnotationBeanPostProcessor的postProcessProperties()方法中，会遍历Set<InjectedElement>中的注入点开始进行注入。
 		 */
+	}
+
+	/**
+	 * 传入一个依赖描述（DependencyDescriptor），该方法会根据该依赖描述从BeanFactory中找出对应的唯一的一个Bean对象
+	 * @see org.springframework.beans.factory.config.AutowireCapableBeanFactory#resolveDependency(DependencyDescriptor, String, Set, TypeConverter) 
+	 */
+	public static void resolveDependency() {
+
 	}
 
 }

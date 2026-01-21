@@ -170,7 +170,10 @@ class ConstructorResolver {
 				}
 			}
 
-			if (candidates.length == 1 && explicitArgs == null && !mbd.hasConstructorArgumentValues()) {
+			//只有一个无参构造方法
+			if (candidates.length == 1
+					&& explicitArgs == null
+					&& !mbd.hasConstructorArgumentValues()) {
 				Constructor<?> uniqueCandidate = candidates[0];
 				if (uniqueCandidate.getParameterCount() == 0) {
 					synchronized (mbd.constructorArgumentLock) {
@@ -206,9 +209,11 @@ class ConstructorResolver {
 			for (Constructor<?> candidate : candidates) {
 				int parameterCount = candidate.getParameterCount();
 
-				if (constructorToUse != null && argsToUse != null && argsToUse.length > parameterCount) {
+				if (constructorToUse != null
+						&& argsToUse != null
+						&& argsToUse.length > parameterCount) {
 					// Already found greedy constructor that can be satisfied ->
-					// do not look any further, there are only less greedy constructors left.
+					// do not look any further, there are only less greedy(贪婪的) constructors left.
 					break;
 				}
 				if (parameterCount < minNrOfArgs) {
@@ -769,7 +774,8 @@ class ConstructorResolver {
 				// If we couldn't find a direct match and are not supposed to autowire,
 				// let's try the next generic, untyped argument value as fallback:
 				// it could match after type conversion (for example, String -> int).
-				if (valueHolder == null && (!autowiring || paramTypes.length == resolvedValues.getArgumentCount())) {
+				if (valueHolder == null
+						&& (!autowiring || paramTypes.length == resolvedValues.getArgumentCount())) {
 					valueHolder = resolvedValues.getGenericArgumentValue(null, null, usedValueHolders);
 				}
 			}
@@ -936,6 +942,30 @@ class ConstructorResolver {
 		}
 	}
 
+	/**
+	 * 这个方法通常在依赖注入的过程中使用，特别是在需要动态设置注入点的场景中。例如：
+	 * 	自定义依赖注入：在某些情况下，可能需要在运行时动态地注入依赖，这时可以使用 setCurrentInjectionPoint 来临时设置注入点，完成注入后再恢复之前的注入点。
+	 * 	嵌套注入：在复杂的注入场景中，可能需要在不同的嵌套层次上设置不同的注入点。
+	 *
+	 * InjectionPoint current = InjectionPoint.setCurrentInjectionPoint(new InjectionPoint() {
+	 *     @Override
+	 *     public MethodParameter getMethodParameter() {
+	 *         // 自定义逻辑
+	 *         return null;
+	 *     }
+	 *
+	 *     // 其他方法的实现
+	 * });
+	 *
+	 * try {
+	 *     // 执行依赖注入相关的操作
+	 * } finally {
+	 *     InjectionPoint.setCurrentInjectionPoint(current);
+	 * }
+	 * 在这个示例中，我们首先保存当前的注入点，然后设置一个新的注入点以执行特定的依赖注入操作。操作完成后，我们恢复之前的注入点，以确保不会影响其他依赖注入过程。
+	 * setCurrentInjectionPoint 方法用于在依赖注入过程中临时设置当前线程的注入点。
+	 * 	它通过 ThreadLocal 来确保线程安全，并允许在复杂的注入场景中灵活地管理注入点。这个方法在 Spring 框架的依赖注入机制中扮演着重要的角色，特别是在需要动态设置注入点的场景中。
+	 */
 	static InjectionPoint setCurrentInjectionPoint(@Nullable InjectionPoint injectionPoint) {
 		InjectionPoint old = currentInjectionPoint.get();
 		if (injectionPoint != null) {
@@ -953,10 +983,13 @@ class ConstructorResolver {
 	 */
 	private static class ArgumentsHolder {
 
+		// 原始参数值数组，未进行任何转换或解析。
 		public final Object[] rawArguments;
 
+		//转换后的参数值数组，可能包含Spring框架根据参数类型和配置进行转换后的值。
 		public final Object[] arguments;
 
+		// 准备好的参数值数组，可能经过了进一步的处理，如验证、包装等。
 		public final Object[] preparedArguments;
 
 		public boolean resolveNecessary = false;

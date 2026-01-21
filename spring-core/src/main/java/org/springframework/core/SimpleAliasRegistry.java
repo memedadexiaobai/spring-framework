@@ -39,6 +39,8 @@ import org.springframework.util.StringValueResolver;
  * @author Juergen Hoeller
  * @author Qimiao Chen
  * @since 2.5.2
+ *
+ * SimpleAliasRegistry 实际就是维护了一个Map结构：aliasMap 来实现别名到规范名的映射
  */
 public class SimpleAliasRegistry implements AliasRegistry {
 
@@ -160,8 +162,10 @@ public class SimpleAliasRegistry implements AliasRegistry {
 				if (resolvedAlias == null || resolvedName == null || resolvedAlias.equals(resolvedName)) {
 					this.aliasMap.remove(alias);
 				}
+				// 解析后的别名和现在的别名不一致
 				else if (!resolvedAlias.equals(alias)) {
 					String existingName = this.aliasMap.get(resolvedAlias);
+					// 通过已解析过的别名拿到了一个 规范名
 					if (existingName != null) {
 						if (existingName.equals(resolvedName)) {
 							// Pointing to existing alias - just remove placeholder
@@ -173,11 +177,13 @@ public class SimpleAliasRegistry implements AliasRegistry {
 								"') for name '" + resolvedName + "': It is already registered for name '" +
 								registeredName + "'.");
 					}
+					// alias 对应的规范名为空
 					checkForAliasCircle(resolvedName, resolvedAlias);
 					this.aliasMap.remove(alias);
 					this.aliasMap.put(resolvedAlias, resolvedName);
 				}
 				else if (!registeredName.equals(resolvedName)) {
+					// 直接覆盖 解析后的才是实际的值
 					this.aliasMap.put(alias, resolvedName);
 				}
 			});
@@ -202,7 +208,7 @@ public class SimpleAliasRegistry implements AliasRegistry {
 	}
 
 	/**
-	 * Determine the raw name, resolving aliases to canonical names.
+	 * Determine the raw name, resolving aliases to canonical(规范的) names.
 	 * @param name the user-specified name
 	 * @return the transformed name
 	 */

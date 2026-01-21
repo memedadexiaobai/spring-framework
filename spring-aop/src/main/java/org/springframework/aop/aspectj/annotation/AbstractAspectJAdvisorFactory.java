@@ -71,12 +71,13 @@ public abstract class AbstractAspectJAdvisorFactory implements AspectJAdvisorFac
 
 	/**
 	 * We consider something to be an AspectJ aspect suitable for use by the Spring AOP system
-	 * if it has the @Aspect annotation, and was not compiled by ajc. The reason for this latter test
-	 * is that aspects written in the code-style (AspectJ language) also have the annotation present
+	 * if it has the @Aspect annotation, and was not compiled by ajc.
+	 * The reason for this latter(后者的) test is that aspects written in the code-style (AspectJ language) also have the annotation present
 	 * when compiled by ajc with the -1.5 flag, yet they cannot be consumed by Spring AOP.
 	 */
 	@Override
 	public boolean isAspect(Class<?> clazz) {
+		//类上有Aspect注解，同时不能是AspectJ编译的类 代表是用户自己定义的切面类
 		return (hasAspectAnnotation(clazz) && !compiledByAjc(clazz));
 	}
 
@@ -89,9 +90,10 @@ public abstract class AbstractAspectJAdvisorFactory implements AspectJAdvisorFac
 	 * interpreted by Spring AOP.
 	 */
 	private boolean compiledByAjc(Class<?> clazz) {
-		// The AJTypeSystem goes to great lengths to provide a uniform appearance between code-style and
-		// annotation-style aspects. Therefore there is no 'clean' way to tell them apart. Here we rely on
-		// an implementation detail of the AspectJ compiler.
+		// The AJTypeSystem goes to great lengths to provide a uniform appearance
+		// between code-style and annotation-style aspects.
+		// Therefore there is no 'clean' way to tell them apart.
+		// Here we rely on an implementation detail of the AspectJ compiler.
 		for (Field field : clazz.getDeclaredFields()) {
 			if (field.getName().startsWith(AJC_MAGIC)) {
 				return true;
@@ -104,8 +106,8 @@ public abstract class AbstractAspectJAdvisorFactory implements AspectJAdvisorFac
 	public void validate(Class<?> aspectClass) throws AopConfigException {
 		// If the parent has the annotation and isn't abstract it's an error
 		Class<?> superclass = aspectClass.getSuperclass();
-		if (superclass.getAnnotation(Aspect.class) != null &&
-				!Modifier.isAbstract(superclass.getModifiers())) {
+		if (superclass.getAnnotation(Aspect.class) != null
+				&& !Modifier.isAbstract(superclass.getModifiers())) {
 			throw new AopConfigException("[" + aspectClass.getName() + "] cannot extend concrete aspect [" +
 					superclass.getName() + "]");
 		}
@@ -253,6 +255,31 @@ public abstract class AbstractAspectJAdvisorFactory implements AspectJAdvisorFac
 	 */
 	private static class AspectJAnnotationParameterNameDiscoverer implements ParameterNameDiscoverer {
 
+		/**
+		 * AspectJ 的 argNames 可以配置多个参数名称，它用于指定切面方法参数与目标方法参数的对应关系
+		 *
+		 * @Before(pointcut = "execution(* com.example.service.UserService.*(..))", argNames = "user,department")
+		 * public void logBefore(JoinPoint joinPoint, User user, Department department) {
+		 *     // 获取参数值
+		 *     System.out.println("User: " + user);
+		 *     System.out.println("Department: " + department);
+		 * }
+		 * 1.argNames 配置多个参数：argNames = "user,department" 表示切面方法的参数 user 和 department 分别对应目标方法的参数。
+		 * 2.目标方法参数匹配
+		 * 	public void updateUser(User user, Department department) { ... }
+		 * 切面方法的参数将与目标方法的参数按顺序匹配。
+		 * 3.getParameterNames 方法作用
+		 * 	如果目标方法有参数，getParameterNames 方法会解析 argNames 中的参数名称。
+		 * 	如果 argNames 中配置了多个参数名称，解析结果将是一个包含多个参数名称的数组。
+		 *
+		 * String[] names = getParameterNames(method);
+		 * // 如果 argNames 配置为 "user,department"，则 names 数组内容为 ["user", "department"]
+		 * 使用场景
+		 * 	多个参数匹配：当目标方法有多个参数时，argNames 配置多个参数名称以便在切面方法中获取这些参数的值。
+		 * 	灵活参数映射：通过指定参数名称，可以灵活地映射目标方法的参数到切面方法的参数。
+		 *
+		 * 	AspectJ 的 argNames 支持配置多个参数名称，它允许切面方法接收目标方法的多个参数，并通过 getParameterNames 方法解析这些参数名称。
+		 */
 		@Override
 		@Nullable
 		public String[] getParameterNames(Method method) {

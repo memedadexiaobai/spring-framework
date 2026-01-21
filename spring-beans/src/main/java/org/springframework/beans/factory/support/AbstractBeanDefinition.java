@@ -1015,7 +1015,39 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 
 	/**
 	 * Return whether this bean definition is 'synthetic', that is,
-	 * not defined by the application itself.
+	 * not defined by the application itself. 用于标识当前 Bean 是否是由 Spring 容器自动生成的，而不是由用户在配置中显式定义的。
+	 *
+	 * 以下是一些可能使 mbd.isSynthetic() 返回 true 的场景：
+	 *  1.AOP 代理类：
+	 *    当使用 Spring AOP 且目标类没有接口时，Spring 会使用 CGLIB 库生成目标类的子类作为代理类。
+	 *    这种情况下，生成的代理类对应的 BeanDefinition 的 isSynthetic() 方法会返回 true。
+	 * 	  例如，当对一个没有接口的类进行切面增强时，Spring 会动态生成一个子类作为代理，这个代理类的 BeanDefinition 就是合成的。
+	 *  2.基础设施 Bean：
+	 *    Spring 容器内部会创建一些基础设施 Bean，用于支持框架的功能，如 ApplicationContext 自身、BeanFactory 等。
+	 *    这些 Bean 通常是由 Spring 自动创建的，而不是由用户直接定义的。
+	 *  3.动态生成的 Bean：
+	 *   在某些情况下，如使用 BeanDefinitionBuilder 或 BeanDefinitionRegistry 动态注册 Bean 时，
+	 *   如果 Bean 是由 Spring 容器在运行时动态生成的，那么对应的 BeanDefinition 的 isSynthetic() 方法可能会返回 true。
+	 *
+	 * import org.springframework.aop.support.AopUtils;
+	 * import org.springframework.context.ApplicationContext;
+	 * import org.springframework.context.support.ClassPathXmlApplicationContext;
+	 *
+	 * public class Main {
+	 *     public static void main(String[] args) {
+	 *         ApplicationContext context = new ClassPathXmlApplicationContext("applicationContext.xml");
+	 *         MyBean myBean = (MyBean) context.getBean("myBean");
+	 *         boolean isSynthetic = context.getBeanFactory().isSynthetic("myBean");
+	 *         System.out.println("Bean 'myBean' is synthetic: " + isSynthetic);
+	 *     }
+	 * }
+	 *
+	 * class MyBean {
+	 *     public void sayHello() {
+	 *         System.out.println("Hello, World!");
+	 *     }
+	 * }
+	 * 在上述示例中，如果 myBean 是由 Spring 容器自动生成的（如 AOP 代理类），则 isSynthetic 将会是 true。否则，如果是用户在配置文件中显式定义的 Bean，则 isSynthetic 将会是 false。
 	 */
 	public boolean isSynthetic() {
 		return this.synthetic;

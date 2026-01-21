@@ -173,8 +173,9 @@ final class JdkDynamicAopProxy implements AopProxy, InvocationHandler, Serializa
 				// There is only getDecoratedClass() declared -> dispatch to proxy config.
 				return AopProxyUtils.ultimateTargetClass(this.advised);
 			}
-			else if (!this.advised.opaque && method.getDeclaringClass().isInterface() &&
-					method.getDeclaringClass().isAssignableFrom(Advised.class)) {
+			else if (!this.advised.opaque
+					&& method.getDeclaringClass().isInterface()
+					&& method.getDeclaringClass().isAssignableFrom(Advised.class)) {
 				// Service invocations on ProxyConfig with the proxy config...
 				return AopUtils.invokeJoinpointUsingReflection(this.advised, method, args);
 			}
@@ -201,6 +202,7 @@ final class JdkDynamicAopProxy implements AopProxy, InvocationHandler, Serializa
 				// We can skip creating a MethodInvocation: just invoke the target directly
 				// Note that the final invoker must be an InvokerInterceptor so we know it does
 				// nothing but a reflective operation on the target, and no hot swapping or fancy proxying.
+				// 这里做了个直接调用 来避免创建多余的 MethodInvocation
 				Object[] argsToUse = AopProxyUtils.adaptArgumentsIfNecessary(method, args);
 				retVal = AopUtils.invokeJoinpointUsingReflection(target, method, argsToUse);
 			}
@@ -214,12 +216,24 @@ final class JdkDynamicAopProxy implements AopProxy, InvocationHandler, Serializa
 
 			// Massage return value if necessary.
 			Class<?> returnType = method.getReturnType();
-			if (retVal != null && retVal == target &&
-					returnType != Object.class && returnType.isInstance(proxy) &&
-					!RawTargetAccess.class.isAssignableFrom(method.getDeclaringClass())) {
+			if (retVal != null
+					&& retVal == target // 判断返回值是否是目标对象（即方法返回了 this）场景：当方法返回 this 时，通常是为了支持方法链（fluent interface
+					&& returnType != Object.class && returnType.isInstance(proxy) // 检查代理对象是否可以被赋值给返回类型。
+					&& !RawTargetAccess.class.isAssignableFrom(method.getDeclaringClass())) { // 确保方法的声明类不是 RawTargetAccess 或其子类 场景：避免在特定基础设施类中进行代理替换。
 				// Special case: it returned "this" and the return type of the method
 				// is type-compatible. Note that we can't help if the target sets
 				// a reference to itself in another returned object.
+				/**
+				 * public class Service {
+				 *     public Service enhance() {
+				 *         // 方法逻辑
+				 *         return this;
+				 *     }
+				 * }
+				 * 当使用 Spring AOP 对 Service 进行代理时，这段逻辑会确保 enhance() 方法返回代理对象而不是目标对象，从而保证后续方法调用仍然通过代理进行。例如：
+				 * Service proxy = (Service) aopProxy;
+				 * proxy.enhance().anotherMethod(); // 确保 enhance() 返回代理对象
+				 */
 				retVal = proxy;
 			}
 			else if (retVal == null && returnType != Void.TYPE && returnType.isPrimitive()) {
