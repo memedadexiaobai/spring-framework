@@ -47,6 +47,7 @@ public class DeclareParentsAdvisor implements IntroductionAdvisor {
 	 * @param interfaceType static field defining the introduction
 	 * @param typePattern type pattern the introduction is restricted to
 	 * @param defaultImpl the default implementation class
+	 * @see org.aspectj.lang.annotation.DeclareParents typePattern 和 defaultImpl 对应2个方法 interfaceType代表有这个注解的属性
 	 */
 	public DeclareParentsAdvisor(Class<?> interfaceType, String typePattern, Class<?> defaultImpl) {
 		this(interfaceType, typePattern,
@@ -76,7 +77,7 @@ public class DeclareParentsAdvisor implements IntroductionAdvisor {
 
 		// Excludes methods implemented.
 		ClassFilter typePatternFilter = new TypePatternClassFilter(typePattern);
-		//检查 clazz 是否不是 this.introducedInterface 的实现类。
+		//检查 clazz 是不是 this.introducedInterface 的实现类
 		ClassFilter exclusion = (clazz -> !this.introducedInterface.isAssignableFrom(clazz));
 		//同时符合 typePatternFilter 和 exclusion
 		this.typePatternClassFilter = ClassFilters.intersection(typePatternFilter, exclusion);

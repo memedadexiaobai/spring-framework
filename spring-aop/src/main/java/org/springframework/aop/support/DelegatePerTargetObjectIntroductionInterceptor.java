@@ -61,9 +61,9 @@ public class DelegatePerTargetObjectIntroductionInterceptor extends Introduction
 	 */
 	private final Map<Object, Object> delegateMap = new WeakHashMap<>();
 
-	private Class<?> defaultImplType;
+	private Class<?> defaultImplType;//接口对应的实现类
 
-	private Class<?> interfaceType;
+	private Class<?> interfaceType;//对应加注解的属性的类型，即对应的接口
 
 
 	public DelegatePerTargetObjectIntroductionInterceptor(Class<?> defaultImplType, Class<?> interfaceType) {

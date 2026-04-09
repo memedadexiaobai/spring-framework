@@ -47,8 +47,12 @@ public abstract class AspectJProxyUtils {
 		if (!advisors.isEmpty()) {
 			boolean foundAspectJAdvice = false;
 			for (Advisor advisor : advisors) {
-				// Be careful not to get the Advice without a guard, as this might eagerly
-				// instantiate a non-singleton AspectJ aspect...
+				/**
+				 * Be careful not to get the Advice without a guard, as this might eagerly instantiate a non-singleton AspectJ aspect...
+				 * isAspectJAdvice(advisor) 这个条件是为了识别是否存在基于 AspectJ 的增强逻辑。
+				 * 在发现这样的增强逻辑时，添加 ExposeInvocationInterceptor.ADVISOR 确保调用上下文能够被正确地暴露和访问，
+				 * 从而支持 AspectJAdvice 的正常运行。这一逻辑在 Spring AOP 的实现中，特别是在处理AspectJ切面时，是确保切面逻辑能够正确执行的关键步骤。
+				 */
 				if (isAspectJAdvice(advisor)) {
 					foundAspectJAdvice = true;
 					break;

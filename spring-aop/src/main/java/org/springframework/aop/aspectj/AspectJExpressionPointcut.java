@@ -312,8 +312,40 @@ public class AspectJExpressionPointcut extends AbstractExpressionPointcut
 			// involved in the test (this, target, at_this, at_target, at_annotation) then
 			// we say this is not a match as in Spring there will never be a different
 			// runtime subtype.
+			/**
+			 * public class Vehicle {
+			 *     public void move() {
+			 *         System.out.println("Vehicle is moving");
+			 *     }
+			 * }
+			 *
+			 * public class Car extends Vehicle {
+			 *     @Override
+			 *     public void move() {
+			 *         System.out.println("Car is moving");
+			 *     }
+			 * }
+			 *
+			 * @Aspect
+			 * public class VehicleAspect {
+			 *     @Pointcut("execution(* Vehicle+.*(..))")
+			 *     public void vehicleMethods() {}
+			 *
+			 *     @Before("vehicleMethods()")
+			 *     public void beforeAdvice(JoinPoint joinPoint) {
+			 *         System.out.println("Before method: " + joinPoint.getSignature().getName());
+			 *     }
+			 * }
+			 * 在这个例子中：
+			 *   Vehicle+ 表示匹配 Vehicle 类及其所有子类。
+			 *   execution(* Vehicle+.*(..)) 表示匹配 Vehicle 类及其子类中的所有方法。
+			 * 当 Spring AOP 框架处理这个切点表达式时，它会使用类似于上述代码的逻辑来快速判断 Car 类是否可能匹配切点表达式：
+			 * walker.testsSubtypeSensitiveVars() 检查切点表达式中是否有子类型敏感的变量。在这个例子中，由于我们使用了 Vehicle+ 来匹配子类，因此可能存在子类型敏感的情况。
+			 * walker.testTargetInstanceOfResidue(Car.class) 测试 Car 类是否是切点表达式中剩余类型的实例。由于 Car 是 Vehicle 的子类，这个测试会返回 true。
+			 */
 			RuntimeTestWalker walker = getRuntimeTestWalker(shadowMatch);
-			return (!walker.testsSubtypeSensitiveVars() || walker.testTargetInstanceOfResidue(targetClass));
+			return (!walker.testsSubtypeSensitiveVars() //检查是否有子类型敏感的变量需要测试。子类型敏感的变量是指那些在子类中可能被覆盖或修改的变量。
+					|| walker.testTargetInstanceOfResidue(targetClass));//测试目标类是否是剩余类型（residue type）的实例。剩余类型是指在切点表达式中未被明确指定但可能匹配的类型。
 		}
 	}
 
@@ -474,8 +506,8 @@ public class AspectJExpressionPointcut extends AbstractExpressionPointcut
 								fallbackExpression = null;
 							}
 						}
-						if (targetMethod != originalMethod && (shadowMatch == null ||
-								(shadowMatch.neverMatches() && Proxy.isProxyClass(targetMethod.getDeclaringClass())))) {
+						if (targetMethod != originalMethod
+								&& (shadowMatch == null || (shadowMatch.neverMatches() && Proxy.isProxyClass(targetMethod.getDeclaringClass())))) {
 							// Fall back to the plain original method in case of no resolvable match or a
 							// negative match on a proxy class (which doesn't carry any annotations on its
 							// redeclared methods).
@@ -584,6 +616,9 @@ public class AspectJExpressionPointcut extends AbstractExpressionPointcut
 	 * handle the {@code bean()} PCD. Matching context is obtained
 	 * automatically by examining a thread local variable and therefore a matching
 	 * context need not be set on the pointcut.
+	 * Spring AOP 中用于处理 bean() 切点表达式的一个处理器。
+	 * 	它的主要作用是能够根据 Spring 容器内的 Bean 名称来匹配特定的 Bean，从而确定切面逻辑应该应用到哪些 Bean 上
+	 * 	spring在原先的AspectJ表达式基础上新支持了一个表达式 bean()
 	 */
 	private class BeanPointcutDesignatorHandler implements PointcutDesignatorHandler {
 
@@ -666,6 +701,7 @@ public class AspectJExpressionPointcut extends AbstractExpressionPointcut
 		}
 
 		private boolean matchesBean(String advisedBeanName) {
+			//这里的匹配规则是完全的字符串匹配，匹配过程中考虑了 别名 和 @Qualifier注解的情况，任一名字匹配则匹配成功
 			return BeanFactoryAnnotationUtils.isQualifierMatch(
 					this.expressionPattern::matches, advisedBeanName, beanFactory);
 		}

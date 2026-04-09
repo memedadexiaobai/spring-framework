@@ -143,7 +143,23 @@ public class ReflectiveAspectJAdvisorFactory extends AbstractAspectJAdvisorFacto
 			}
 		}
 
-		// If it's a per target aspect, emit the dummy instantiating aspect.
+		/**
+		 * If it's a per target aspect, emit(发出) the dummy(虚拟的) instantiating aspect.
+		 *
+		 * 懒加载的时候，添加 SyntheticInstantiationAdvisor
+		 * 为什么添加 SyntheticInstantiationAdvisor
+		 * 	支持懒加载切面：
+		 * 		SyntheticInstantiationAdvisor 的作用是在需要时才实例化懒加载的切面。这避免了在应用启动时立即创建所有切面实例，从而节省内存和加快启动速度。
+		 * 	优化实例化时机：
+		 * 		将切面实例的创建推迟到实际需要时，可以避免不必要的实例化，特别是在切面可能不会被使用的情况下。
+		 * 	确保正确的实例化顺序：
+		 * 		将 SyntheticInstantiationAdvisor 放在拦截器链的最前面，可以确保在其他拦截器执行之前完成切面实例的创建。
+		 * 可以看下 isLazilyInstantiated 方法就理解了，以下这些切面需要和实例去对应，因此对应的切面实例需要懒加载 也节省了性能
+		 * 	以下几类是懒初始化的：
+		 * 		perthis：切面的实例与目标对象的实例一一对应。每个目标对象实例都有自己的切面实例。
+		 * 	    pertarget：切面的实例与目标对象的实例一一对应。与 `PERTHIS` 类似，但更侧重于目标对象本身
+		 * 	    pertypewithin：切面的实例与特定的类型相关。切面被引入到指定类型的所有实例中。
+		 */
 		if (!advisors.isEmpty() && lazySingletonAspectInstanceFactory.getAspectMetadata().isLazilyInstantiated()) {
 			Advisor instantiationAdvisor = new SyntheticInstantiationAdvisor(lazySingletonAspectInstanceFactory);
 			advisors.add(0, instantiationAdvisor);
@@ -217,7 +233,7 @@ public class ReflectiveAspectJAdvisorFactory extends AbstractAspectJAdvisorFacto
 
 	@Nullable
 	private AspectJExpressionPointcut getPointcut(Method candidateAdviceMethod, Class<?> candidateAspectClass) {
-		// 寻找有这些注解的方法：@Pointcut、@Around、@Before.class、@After、@AfterReturning、@AfterThrowing
+		// 寻找有这些注解的方法：@Pointcut、@Around、@Before、@After、@AfterReturning、@AfterThrowing
 		AspectJAnnotation<?> aspectJAnnotation =
 				AbstractAspectJAdvisorFactory.findAspectJAnnotationOnMethod(candidateAdviceMethod);
 		if (aspectJAnnotation == null) {
@@ -269,6 +285,7 @@ public class ReflectiveAspectJAdvisorFactory extends AbstractAspectJAdvisorFacto
 				}
 				return null;
 			case AtAround:
+				// 实现了 MethodInterceptor 接口
 				springAdvice = new AspectJAroundAdvice(
 						candidateAdviceMethod, expressionPointcut, aspectInstanceFactory);
 				break;
@@ -277,6 +294,7 @@ public class ReflectiveAspectJAdvisorFactory extends AbstractAspectJAdvisorFacto
 						candidateAdviceMethod, expressionPointcut, aspectInstanceFactory);
 				break;
 			case AtAfter:
+				// 实现了 MethodInterceptor 接口
 				springAdvice = new AspectJAfterAdvice(
 						candidateAdviceMethod, expressionPointcut, aspectInstanceFactory);
 				break;
@@ -289,6 +307,7 @@ public class ReflectiveAspectJAdvisorFactory extends AbstractAspectJAdvisorFacto
 				}
 				break;
 			case AtAfterThrowing:
+				// 实现了 MethodInterceptor 接口
 				springAdvice = new AspectJAfterThrowingAdvice(
 						candidateAdviceMethod, expressionPointcut, aspectInstanceFactory);
 				AfterThrowing afterThrowingAnnotation = (AfterThrowing) aspectJAnnotation.getAnnotation();
@@ -315,9 +334,11 @@ public class ReflectiveAspectJAdvisorFactory extends AbstractAspectJAdvisorFacto
 
 
 	/**
-	 * Synthetic advisor that instantiates the aspect.
+	 * Synthetic(合成的) advisor that instantiates the aspect.
 	 * Triggered by per-clause pointcut on non-singleton aspect.
 	 * The advice has no effect.
+	 *
+	 * Spring AOP 中用于处理懒加载单例切面实例的拦截器。
 	 */
 	@SuppressWarnings("serial")
 	protected static class SyntheticInstantiationAdvisor extends DefaultPointcutAdvisor {

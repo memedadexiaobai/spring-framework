@@ -281,6 +281,7 @@ public abstract class AopUtils {
 	 * @return whether the pointcut can apply on any method
 	 */
 	public static boolean canApply(Advisor advisor, Class<?> targetClass, boolean hasIntroductions) {
+		//可以看出 advisor分2类：一类是 IntroductionAdvisor 类维度的匹配 一类是 PointcutAdvisor，类和方法维度的匹配
 		if (advisor instanceof IntroductionAdvisor) {
 			return ((IntroductionAdvisor) advisor).getClassFilter().matches(targetClass);
 		}

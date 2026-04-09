@@ -105,6 +105,13 @@ public interface Advised extends TargetClassAware {
 	/**
 	 * Return whether this proxy configuration is pre-filtered so that it only
 	 * contains applicable advisors (matching this proxy's target class).
+	 * 用于控制是否已经对 Advisor 列表进行了预筛选。这个方法返回一个布尔值，表示 Advisor 列表是否已经被筛选过，以排除那些不会对目标类产生任何影响的 Advisor。
+	 * 作用
+	 * 	优化性能：通过标记 Advisor 列表是否已经经过预筛选，可以避免重复的筛选操作，从而提高性能。
+	 * 	简化逻辑：在某些情况下，框架内部已经对 Advisor 列表进行了筛选，此时 isPreFiltered() 可以指示后续逻辑不需要再进行重复的筛选。
+	 * 使用场景
+	 * 	框架内部优化：Spring 框架在创建代理对象时，会预先筛选 Advisor 列表，以确保只有相关的 Advisor 被应用到代理对象上。
+	 * 	自定义 Advisor 筛选：在自定义 AOP 功能时，开发者可以利用 isPreFiltered() 来避免重复筛选 Advisor，从而提高效率。
 	 */
 	boolean isPreFiltered();
 

@@ -267,6 +267,17 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 			if (StringUtils.hasLength(beanName)) {
 				this.targetSourcedBeans.add(beanName);
 			}
+			/**
+			 * 获取 beanFactory 中 Advisor 的所有实现类
+			 * 获取 beanFactory 中所有标注 @Aspect的切面类：扫描每一个没有 @Pointcut 注解的方法，生成 AspectJExpressionPointcut，每个方法都是一个切入点
+			 * Advisor分为2类：
+			 * 	1.{@link org.springframework.aop.IntroductionAdvisor } 实现类维度的匹配
+			 * 		这里主要是 {@link org.aspectj.lang.annotation.DeclareParents } 的使用，对应的处理该注解的类是  {@link org.springframework.aop.aspectj.DeclareParentsAdvisor }
+			 * 	2.{@link org.springframework.aop.PointcutAdvisor } 实现类和方法维度的匹配，
+			 * 		这里对应的实现类是 {@link org.springframework.aop.aspectj.annotation.InstantiationModelAwarePointcutAdvisorImpl}
+			 * 	    解析表达式对应的pointcat是 {@link org.springframework.aop.aspectj.AspectJExpressionPointcut},
+			 * 	    	这里指定了支持的类型详见 {@link org.springframework.aop.aspectj.AspectJExpressionPointcut#SUPPORTED_PRIMITIVES}
+			 */
 			Object[] specificInterceptors = getAdvicesAndAdvisorsForBean(beanClass, beanName, targetSource);
 			Object proxy = createProxy(beanClass, beanName, specificInterceptors, targetSource);
 			this.proxyTypes.put(cacheKey, proxy.getClass());

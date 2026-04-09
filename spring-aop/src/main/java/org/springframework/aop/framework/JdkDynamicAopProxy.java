@@ -26,6 +26,7 @@ import org.aopalliance.intercept.MethodInvocation;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import org.springframework.aop.Advisor;
 import org.springframework.aop.AopInvocationException;
 import org.springframework.aop.RawTargetAccess;
 import org.springframework.aop.TargetSource;
@@ -188,12 +189,19 @@ final class JdkDynamicAopProxy implements AopProxy, InvocationHandler, Serializa
 				setProxyContext = true;
 			}
 
-			// Get as late as possible to minimize the time we "own" the target,
+			// Get as late as possible to minimize the time we "own" the target, 尽量晚的去获取这个实例
 			// in case it comes from a pool.
-			target = targetSource.getTarget();
+			target = targetSource.getTarget(); //这会才真正的去创建对象
 			Class<?> targetClass = (target != null ? target.getClass() : null);
 
-			// Get the interception chain for this method.
+			/**
+			 * Get the interception chain for this method.
+			 * 返回 {@link org.aopalliance.intercept.MethodInterceptor },
+			 * 	在 {@link org.springframework.aop.framework.adapter.DefaultAdvisorAdapterRegistry#getInterceptors(Advisor)}实现中，做了个适配的逻辑
+			 * 	{@link org.springframework.aop.framework.adapter.MethodBeforeAdviceAdapter}->{@link org.springframework.aop.framework.adapter.MethodBeforeAdviceInterceptor}
+			 * 	{@link org.springframework.aop.framework.adapter.AfterReturningAdviceAdapter}->{@link org.springframework.aop.framework.adapter.AfterReturningAdviceInterceptor}
+			 * 	{@link org.springframework.aop.framework.adapter.ThrowsAdviceAdapter}->{@link org.springframework.aop.framework.adapter.ThrowsAdviceInterceptor}
+ 			 */
 			List<Object> chain = this.advised.getInterceptorsAndDynamicInterceptionAdvice(method, targetClass);
 
 			// Check whether we have any advice. If we don't, we can fallback on direct
